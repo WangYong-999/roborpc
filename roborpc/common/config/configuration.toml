@@ -6,20 +6,14 @@ rpc_port = ['4244']
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
-[roborpc.robots.sim_frank]
+[roborpc.robots.isaac_sim_franka]
 ip_address = ['127.0.0.1']
 robot_ids = ['single_franka']
-rpc_port = '4245'
+rpc_port = ['4245']
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
-[roborpc.robots.dynamixel]
-ip_address = ['127.0.0.1']
-robot_ids = ['dynamixel_franka']
-rpc_port = '4245'
-robot_arm_dof = 7
-robot_gripper_dof = 1
-
+[roborpc.robots.dynamixel.dynamixel_realman_left_arm]
 start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [1, 2, 3, 4, 5, 6, 7]
 joint_signs = [1, -1, 1, 1, 1, -1, 1]
@@ -29,3 +23,6 @@ joint_offsets =  [4.71238898038469, 6.283185307179586, 3.141592653589793, 4.7123
 gripper_config = [8, 198, 156]
 button_A_port = "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"
 button_B_port = "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"
+
+[roborpc.controllers.gello_controller]
+controller_ids = ['dynamixel_realman_left_arm']

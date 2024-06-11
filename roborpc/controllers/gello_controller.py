@@ -1,6 +1,7 @@
 import os
+import threading
 import time
-from typing import Optional, Sequence, Tuple, Dict
+from typing import Optional, Sequence, Tuple, Dict, List, Union
 
 import numpy as np
 import serial
@@ -8,168 +9,36 @@ from dataclasses import dataclass
 from pynput import keyboard
 from pynput.keyboard import Key
 
-from thirty_part.dynamixel.dynamixel import DynamixelRobot
-from common.config_loader import config as common_config
+from roborpc.controllers.controller_base import ControllerBase
+from roborpc.robots.dynamixel import Dynamixel
+from roborpc.common.config_loader import config as common_config
+from roborpc.common.logger_loader import logger
 
 
-def vec_to_reorder_mat(vec):
-    X = np.zeros((len(vec), len(vec)))
-    for i in range(X.shape[0]):
-        ind = int(abs(vec[i])) - 1
-        X[i, ind] = np.sign(vec[i])
-    return X
-
-
-@dataclass
-class DynamixelRobotConfig:
-    joint_ids: Sequence[int]
-    """The joint ids of GELLO (not including the gripper). Usually (1, 2, 3 ...)."""
-
-    joint_offsets: Sequence[float]
-    """The joint offsets of GELLO. There needs to be a joint offset for each joint_id and should be a multiple of pi/2."""
-
-    joint_signs: Sequence[int]
-    """The joint signs of GELLO. There needs to be a joint sign for each joint_id and should be either 1 or -1.
-
-    This will be different for each arm design. Refernce the examples below for the correct signs for your robot.
-    """
-
-    gripper_config: Tuple[int, int, int]
-    """The gripper config of GELLO. This is a tuple of (gripper_joint_id, degrees in open_position, degrees in closed_position)."""
-
-    def __post_init__(self):
-        assert len(self.joint_ids) == len(self.joint_offsets)
-        assert len(self.joint_ids) == len(self.joint_signs)
-
-    def make_robot(
-            self, port: str = "/dev/ttyUSB0", start_joints: Optional[np.ndarray] = None
-    ) -> DynamixelRobot:
-        return DynamixelRobot(
-            joint_ids=self.joint_ids,
-            joint_offsets=list(self.joint_offsets),
-            real=True,
-            joint_signs=list(self.joint_signs),
-            port=port,
-            gripper_config=self.gripper_config,
-            start_joints=start_joints,
-        )
-
-
-joint_offsets_list = common_config["droid"]["robot"]["gello_offset"]
-gripper_offset_list = common_config["droid"]["robot"]["gello_gripper_offset"]
-PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
-    # xArm
-    # "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT3M9NVB-if00-port0": DynamixelRobotConfig(
-    #     joint_ids=(1, 2, 3, 4, 5, 6, 7),
-    #     joint_offsets=(
-    #         2 * np.pi / 2,
-    #         2 * np.pi / 2,
-    #         2 * np.pi / 2,
-    #         2 * np.pi / 2,
-    #         -1 * np.pi / 2 + 2 * np.pi,
-    #         1 * np.pi / 2,
-    #         1 * np.pi / 2,
-    #     ),
-    #     joint_signs=(1, 1, 1, 1, 1, 1, 1),
-    #     gripper_config=(8, 279, 279 - 50),
-    # ),
-    # panda
-    common_config["droid"]["robot"]["gello_port"]: DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6, 7),
-        joint_offsets=tuple(joint_offsets_list),
-        joint_signs=(1, -1, 1, 1, 1, -1, 1),
-        gripper_config=(8, gripper_offset_list[0], gripper_offset_list[1]),
-    ),
-    # Left UR
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0": DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=(
-            0,
-            1 * np.pi / 2 + np.pi,
-            np.pi / 2 + 0 * np.pi,
-            0 * np.pi + np.pi / 2,
-            np.pi - 2 * np.pi / 2,
-            -1 * np.pi / 2 + 2 * np.pi,
-        ),
-        joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config=(7, 20, -22),
-    ),
-    # Right UR
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0": DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=(
-            np.pi + 0 * np.pi,
-            2 * np.pi + np.pi / 2,
-            2 * np.pi + np.pi / 2,
-            2 * np.pi + np.pi / 2,
-            1 * np.pi,
-            3 * np.pi / 2,
-        ),
-        joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config=(7, 286, 248),
-    ),
-}
-
-
-class GelloPolicy:
+class GelloController(ControllerBase):
     def __init__(
             self,
-            port: str,
-            dynamixel_config: Optional[DynamixelRobotConfig] = None,
-            right_controller: bool = True,
-            max_lin_vel: float = 1,
-            max_rot_vel: float = 1,
-            max_gripper_vel: float = 1,
-            spatial_coeff: float = 1,
-            pos_action_gain: float = 5,
-            rot_action_gain: float = 2,
-            gripper_action_gain: float = 3,
-            rmat_reorder: list = [-2, -1, -3, 4],
+            dynamixel: Dynamixel
     ):
+        self.gello_joints = None
+        self.update_sensor = None
+        self.move_start_num = None
+        self._goto_start_pos = None
+        self.move_start_flag = None
+        self._state = None
         self.key_button = False
-        start_joints = np.array(common_config["droid"]["robot"]["start_joints"])
-
-        if dynamixel_config is not None:
-            self._robot = dynamixel_config.make_robot(
-                port=port, start_joints=start_joints
-            )
-        else:
-            assert os.path.exists(port), port
-            assert port in PORT_CONFIG_MAP, f"Port {port} not in config map"
-
-            config = PORT_CONFIG_MAP[port]
-            self._robot = config.make_robot(port=port, start_joints=start_joints)
-        # button_A_port = common_config["droid"]["robot"]["button_A_port"]
-        # button_B_port = common_config["droid"]["robot"]["button_B_port"]
-        # self.button_A = serial.Serial(button_A_port, baudrate=115200, timeout=0.02, xonxoff=False, rtscts=False,
-        #                               dsrdtr=False)
-        # self.button_B = serial.Serial(button_B_port, baudrate=115200, timeout=0.02, xonxoff=False, rtscts=False,
-        #                               dsrdtr=False)
-
-        self.vr_to_global_mat = np.eye(4)
-        self.max_lin_vel = max_lin_vel
-        self.max_rot_vel = max_rot_vel
-        self.max_gripper_vel = max_gripper_vel
-        self.spatial_coeff = spatial_coeff
-        self.pos_action_gain = pos_action_gain
-        self.rot_action_gain = rot_action_gain
-        self.gripper_action_gain = gripper_action_gain
-        self.global_to_env_mat = vec_to_reorder_mat(rmat_reorder)
-        self.controller_id = "r" if right_controller else "l"
+        self._robot = dynamixel
+        logger.info("Gello Controller Initialized")
+        self._robot.connect()
+        self.controller_id = self._robot.robot_id
         self.reset_state()
 
-        # Checkout jonits offset
-        print(self._robot.get_joint_state())
-        print(common_config["droid"]["robot"]["start_joints"])
-        assert np.allclose(self._robot.get_joint_state(), common_config["droid"]["robot"]["start_joints"],
-                           rtol=2, atol=2)
+        assert np.allclose(np.array(self._robot.get_robot_state()["robot_positions"]), self._robot.start_joints, rtol=2, atol=2)
 
         self.button_A_pressed = False
         self.button_B_pressed = False
-        run_threaded_command(self.run_key_listen)
-        # Start State Listening Thread #
-        run_threaded_command(self._update_internal_state)
-        # wait gello update joints angle
+        threading.Thread(target=self.run_key_listen).start()
+        threading.Thread(target=self._update_internal_state).start()
         time.sleep(3)
 
     def run_key_listen(self):
@@ -218,7 +87,7 @@ class GelloPolicy:
 
             # Read Controller
             time_since_read = time.time() - last_read_time
-            dyna_joints = self._robot.get_joint_state()
+            dyna_joints = np.array(self._robot.get_robot_state()["robot_positions"])
             # print(f"dyna_joints: {dyna_joints}")
             current_q = dyna_joints[:-1]  # last one dim is the gripper
             current_gripper = dyna_joints[-1]  # last one dim is the gripper
@@ -251,11 +120,11 @@ class GelloPolicy:
             self.button_A_pressed = False
             self.button_B_pressed = False
 
-    def _process_reading(self):
+    def process_reading(self):
         gello_joints = np.asarray(self._state["gello_joints"][self.controller_id])
         self.gello_joints = {"gello_joints": gello_joints}
 
-    def _go_start_joints(self, state_dict):
+    def go_start_joints(self, state_dict):
         # going to start position
         print("Going to start position")
         # get gello data
@@ -323,19 +192,15 @@ class GelloPolicy:
             exit()
         self._goto_start_pos = True
 
-    def _calculate_action(self, state_dict, include_info=False):
+    def calculate_action(self):
         # Read Sensor #
         if self.update_sensor:
-            self._process_reading()
+            self.process_reading()
             self.update_sensor = False
 
-        # gello
-        if include_info:
-            return np.asarray(self._state["gello_joints"][self.controller_id]), {}
-        else:
-            return np.asarray(self._state["gello_joints"][self.controller_id])
+        return np.asarray(self._state["gello_joints"][self.controller_id])
 
-    def get_info(self):
+    def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         return {
             "success": self._state["buttons"]["A"],
             "failure": self._state["buttons"]["B"],
@@ -343,7 +208,36 @@ class GelloPolicy:
             "controller_on": self._state["controller_on"],
         }
 
-    def forward(self, obs_dict, include_info=False):
+    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]):
         if not self._goto_start_pos:
-            self._go_start_joints(obs_dict["robot_state"])
-        return self._calculate_action(obs_dict["robot_state"], include_info=include_info)
+            self.go_start_joints(obs_dict["robot_state"])
+        return self.calculate_action()
+
+
+class MultiGelloController(ControllerBase):
+    def __init__(self):
+        self.gello_controllers = {}
+        self.gello_controller_ids = common_config["roborpc"]["controllers"]["gello_controller"]["controller_ids"]
+        self.robots_config = common_config["roborpc"]["robots"]["dynamixel"]
+        for controller_id in self.gello_controller_ids:
+            self.gello_controllers[controller_id] = GelloController(
+                Dynamixel(
+                    robot_id=controller_id,
+                    joint_ids=self.robots_config[controller_id]["joint_ids"],
+                    joint_signs=self.robots_config[controller_id]["joint_signs"],
+                    joint_offsets=self.robots_config[controller_id]["joint_offsets"],
+                    start_joints=self.robots_config[controller_id]["start_joints"],
+                    port=self.robots_config[controller_id]["port"],
+                    gripper_config=self.robots_config[controller_id]["gripper_config"]
+                ),
+            )
+
+    def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
+        info_dict = {}
+        for controller_id in self.gello_controller_ids:
+            info_dict[controller_id] = self.gello_controllers[controller_id].get_info()
+        return info_dict
+
+    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]):
+        for controller_id in self.gello_controller_ids:
+            self.gello_controllers[controller_id].forward(obs_dict[controller_id])

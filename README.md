@@ -9,6 +9,8 @@ A easy, reliable, fluid template for python packages complete with docs, testing
 You can install the package using pip
 
 ```bash
+conda create -n roborpc python=3.8
+conda activate roborpc
 pip install -e .
 ```
 

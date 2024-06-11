@@ -13,7 +13,7 @@ from roborpc.common.config_loader import config
 from thirty_part.realman.robotic_arm import *
 
 
-class SimFrankaRpc(RobotBase):
+class IsaacSimFrankaRpc(RobotBase):
 
     def __init__(self, robot_id: str, ip_address: str, rpc_port: str):
         super().__init__()
@@ -158,9 +158,9 @@ class SimFrankaRpc(RobotBase):
         return camera_info
 
 
-class MultiSimFrankaRpc(RobotBase):
+class MultiIsaacSimFrankaRpc(RobotBase):
     def __init__(self):
-        self.robot_config = config["roborpc"]["robots"]["sim_franka"]
+        self.robot_config = config["roborpc"]["robots"]["isaac_sim_franka"]
         self.robots = None
 
     def connect(self):

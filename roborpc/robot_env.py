@@ -3,7 +3,7 @@ import threading
 from roborpc.common.config_loader import config
 
 from roborpc.robots.realman import MultiRealMan as Robot
-from roborpc.robots.sim_franka_rpc import MultiSimFrankaRpc
+from roborpc.robots.isaac_sim_franka_rpc import MultiSimFrankaRpc
 # from roborpc.cameras.realsense_camera import MultiRealSenseCamera as Camera
 
 
