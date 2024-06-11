@@ -1,9 +1,17 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
+
+import numpy as np
+import transforms3d.euler
 
 from robot_base import RobotBase
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
+
+# new version of realman API
 from thirty_part.realman.robotic_arm import *
+
+# old version of realman API
+from thirty_part.realman.realman_driver import DriverRealman
 
 
 class RealMan(RobotBase):
@@ -12,89 +20,53 @@ class RealMan(RobotBase):
         super().__init__()
         self.robot_id = robot_id
         self.ip_address = ip_address
-        self.robot = None
+        self.robot: Optional[DriverRealman] = None
         self.last_arm_state = None
         self.robot_arm_dof = None
         self.robot_gripper_dof = None
 
     def connect(self):
-        def mcallback(data):
-            logger.info("MCallback MCallback MCallback")
-            # 判断接口类型
-            if data.codeKey == MOVEJ_CANFD_CB:  # 角度透传
-                print("透传结果:", data.errCode)
-                print("当前角度:", data.joint[0], data.joint[1], data.joint[2], data.joint[3], data.joint[4],
-                      data.joint[5])
-            elif data.codeKey == MOVEP_CANFD_CB:  # 位姿透传
-                print("透传结果:", data.errCode)
-                print("当前角度:", data.joint[0], data.joint[1], data.joint[2], data.joint[3], data.joint[4],
-                      data.joint[5])
-                print("当前位姿:", data.pose.position.x, data.pose.position.y, data.pose.position.z, data.pose.euler.rx,
-                      data.pose.euler.ry, data.pose.euler.rz)
-            elif data.codeKey == FORCE_POSITION_MOVE_CB:  # 力位混合透传
-                print("透传结果:", data.errCode)
-                print("当前力度：", data.nforce)
-
-        callback = CANFD_Callback(mcallback)
-        robot_type = RM75
-        self.robot = Arm(robot_type, self.ip_address, callback)
-        if robot_type == RM75:
-            self.robot_arm_dof = 7
-        elif robot_type == RM65:
-            self.robot_arm_dof = 6
-        else:
-            assert False, "Unsupported robot type"
+        self.robot = DriverRealman()
+        self.robot_arm_dof = 7
         self.robot_gripper_dof = 1
         self.last_arm_state = [0.0] * self.robot_arm_dof
 
-        # API版本信息
-        logger.info(self.robot.API_Version())
+        logger.info("Connect to RealMan Robot.")
 
     def disconnect(self):
-        self.robot.RM_API_UnInit()
-        self.robot.Arm_Socket_Close()
+        pass
 
     def get_robot_ids(self) -> List[str]:
         pass
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
-        pass
+        self.robot.move_cartesian_pose_trajectory(np.array([action]))
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
-        pass
+        self.robot.move_joints_radian_trajectory(np.array([action]))
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "gripper_position", blocking: Union[bool, List[bool]] = False):
-        pass
+        self.robot.set_gripper_opening(action[0])
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        pass
+        robot_state = {"joint_position": self.get_joint_positions(), "gripper_position": self.get_gripper_position(),
+                       "ee_pose": self.get_ee_pose()}
+        return robot_state
 
     def get_dofs(self) -> int:
         return self.robot_arm_dof
 
     def get_joint_positions(self) -> List[float]:
-        arm_state = self.robot.Get_Current_Arm_State(retry=1)
-        if arm_state[0] == 0:
-            self.last_arm_state = arm_state
-            return arm_state[1]
-        else:
-            logger.error("RealMan Robot Get Joint Positions Failed!")
-            return self.last_arm_state[1]
+        return list(self.robot.get_joints_radian())
 
     def get_gripper_position(self) -> List[float]:
-        ret, gripper_state = self.robot.Get_Gripper_State()
-        return gripper_state
+        return [self.robot.get_gripper_opening()]
 
     def get_joint_velocities(self) -> List[float]:
         pass
 
     def get_ee_pose(self) -> List[float]:
-        arm_state = self.robot.Get_Current_Arm_State(retry=1)
-        if arm_state[0] == 0:
-            self.last_arm_state = arm_state
-            return arm_state[2]
-        else:
-            return self.last_arm_state[2]
+        return list(self.robot.get_end_effector_pose())
 
 
 class MultiRealMan(RobotBase):
@@ -168,3 +140,12 @@ class MultiRealMan(RobotBase):
             ee_poses[robot_id] = robot.get_ee_pose()
         return ee_poses
 
+
+if __name__ == '__main__':
+    multi_realman = MultiRealMan()
+    multi_realman.connect()
+    print(multi_realman.get_robot_ids())
+    print(multi_realman.get_robot_state())
+
+    multi_realman.set_joints([0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
+                              0.01965240737745615, -0.2019695010407838, 0.3374869513188684])
