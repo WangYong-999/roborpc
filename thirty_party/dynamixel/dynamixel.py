@@ -16,7 +16,7 @@ class DynamixelRobot:
         gripper_config: Optional[Tuple[int, float, float]] = None,
         start_joints: Optional[np.ndarray] = None,
     ):
-        from thirty_part.dynamixel.driver import (
+        from thirty_party.dynamixel.driver import (
             DynamixelDriver,
             DynamixelDriverProtocol,
             FakeDynamixelDriver,

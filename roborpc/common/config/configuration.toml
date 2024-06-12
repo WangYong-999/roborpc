@@ -26,3 +26,4 @@ button_B_port = "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"
 
 [roborpc.controllers.gello_controller]
 controller_ids = ['dynamixel_realman_left_arm']
+rpc_port = ['4245']

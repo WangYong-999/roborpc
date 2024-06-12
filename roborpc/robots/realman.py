@@ -2,16 +2,17 @@ from typing import Dict, List, Union, Optional
 
 import numpy as np
 import transforms3d.euler
+import argparse
 
 from robot_base import RobotBase
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
 
 # new version of realman API
-from thirty_part.realman.robotic_arm import *
+from thirty_party.realman.robotic_arm import *
 
 # old version of realman API
-from thirty_part.realman.realman_driver import DriverRealman
+from thirty_party.realman.realman_driver import DriverRealman
 
 
 class RealMan(RobotBase):
@@ -70,7 +71,7 @@ class RealMan(RobotBase):
 
 
 class MultiRealMan(RobotBase):
-    def __init__(self):
+    def __init__(self, args: argparse.Namespace = None):
         self.robot_config = config["roborpc"]["robots"]["realman"]
         self.robots = None
 
@@ -142,10 +143,16 @@ class MultiRealMan(RobotBase):
 
 
 if __name__ == '__main__':
-    multi_realman = MultiRealMan()
-    multi_realman.connect()
-    print(multi_realman.get_robot_ids())
-    print(multi_realman.get_robot_state())
+    import zerorpc
+    # multi_realman = MultiRealMan()
+    # multi_realman.connect()
+    # print(multi_realman.get_robot_ids())
+    # print(multi_realman.get_robot_state())
+    #
+    # multi_realman.set_joints([0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
+    #                           0.01965240737745615, -0.2019695010407838, 0.3374869513188684])
 
-    multi_realman.set_joints([0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
-                              0.01965240737745615, -0.2019695010407838, 0.3374869513188684])
+    multi_realman = MultiRealMan()
+    s = zerorpc.Server(multi_realman)
+    s.bind(f"tcp://0.0.0.0:{multi_realman.robot_config['rpc_port'][0]}")
+    s.run()

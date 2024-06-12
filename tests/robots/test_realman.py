@@ -1,6 +1,6 @@
 import time
 
-from thirty_part.realman.robotic_arm import *
+from thirty_party.realman.robotic_arm import *
 
 import sys
 

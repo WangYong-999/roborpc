@@ -236,6 +236,11 @@ class DriverRealman:
         """Return the gripper's opening amount."""
         # raise NotImplementedError('get_gripper not implemented')
         return self.last_gripper_position
+        # data = json.dumps({'command': 'get_gripper_state'})
+        # data += '\r\n'
+        # result = self._send_msg_with_retry(data)
+        # print(result)
+        # return result['gripper_state']['position'] / 1000.0
 
     def get_joints_radian(self) -> np.ndarray:
         """Return the joint angles in radian.
@@ -457,14 +462,15 @@ class DriverRealman:
 
 if __name__ == '__main__':
     realman = DriverRealman()
-    print(realman.get_end_effector_pose())
     print(realman.get_joints_radian().tolist())
     print(realman.get_gripper_opening())
-    while True:
-        try:
-            realman.move_joints_radian_trajectory(np.array([[0.10136872295583066, 0.05989969992844539, -0.14184290830957919,
-                                                  -1.846350833211097, 0.01965240737745615, -0.20198695433330377, 0.2375044046113884]]))
-            break
-        except Exception as e:
-            print(e)
-            break
+
+    # print(realman.get_gripper_opening())
+    # while True:
+    #     try:
+    #         realman.move_joints_radian_trajectory(np.array([[0.10136872295583066, 0.05989969992844539, -0.14184290830957919,
+    #                                               -1.846350833211097, 0.01965240737745615, -0.20198695433330377, 0.2375044046113884]]))
+    #         break
+    #     except Exception as e:
+    #         print(e)
+    #         break

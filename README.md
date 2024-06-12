@@ -5,6 +5,9 @@ A easy, reliable, fluid template for python packages complete with docs, testing
 
 
 ## Installation
+```cmake
+https://docs.omniverse.nvidia.com/isaacsim/latest/replicator_tutorials/tutorial_replicator_isaac_randomizers.html?highlight=PhysxSchema#physics-based-randomized-volume-filling
+```
 
 You can install the package using pip
 

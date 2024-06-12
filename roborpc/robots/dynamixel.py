@@ -3,7 +3,7 @@ from typing import Union, List, Dict, Sequence, Optional, Tuple
 import numpy as np
 
 from roborpc.robots.robot_base import RobotBase
-from thirty_part.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol, FakeDynamixelDriver
+from thirty_party.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol, FakeDynamixelDriver
 
 
 class Dynamixel(RobotBase):

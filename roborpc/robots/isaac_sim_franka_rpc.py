@@ -10,7 +10,7 @@ from roborpc.cameras.camera_utils import base64_rgb, base64_depth
 from robot_base import RobotBase
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
-from thirty_part.realman.robotic_arm import *
+from thirty_party.realman.robotic_arm import *
 
 
 class IsaacSimFrankaRpc(RobotBase):
