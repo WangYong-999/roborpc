@@ -28,8 +28,8 @@ class RealMan(RobotBase):
 
     def connect(self):
         self.robot = DriverRealman()
-        self.robot_arm_dof = 7
-        self.robot_gripper_dof = 1
+        self.robot_arm_dof = config["roborpc"]["robots"]["realman"][self.robot_id]["robot_arm_dof"]
+        self.robot_gripper_dof = config["roborpc"]["robots"]["realman"][self.robot_id]["robot_gripper_dof"]
         self.last_arm_state = [0.0] * self.robot_arm_dof
 
         logger.info("Connect to RealMan Robot.")
@@ -54,32 +54,32 @@ class RealMan(RobotBase):
                        "ee_pose": self.get_ee_pose()}
         return robot_state
 
-    def get_dofs(self) -> int:
+    def get_dofs(self) -> Union[int, Dict[str, int]]:
         return self.robot_arm_dof
 
-    def get_joint_positions(self) -> List[float]:
+    def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
         return list(self.robot.get_joints_radian())
 
-    def get_gripper_position(self) -> List[float]:
+    def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         return [self.robot.get_gripper_opening()]
 
-    def get_joint_velocities(self) -> List[float]:
+    def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         pass
 
-    def get_ee_pose(self) -> List[float]:
+    def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         return list(self.robot.get_end_effector_pose())
 
 
 class MultiRealMan(RobotBase):
     def __init__(self, args: argparse.Namespace = None):
         self.robot_config = config["roborpc"]["robots"]["realman"]
-        self.robots = None
+        self.robots = {}
+        self.robot_ids = self.robot_config["robot_ids"]
 
     def connect(self):
-        robot_ids = self.robot_config["robot_ids"]
         self.robots = {}
-        for idx, robot_id in enumerate(robot_ids):
-            ip_address = self.robot_config["ip_address"][idx]
+        for idx, robot_id in enumerate(self.robot_ids):
+            ip_address = self.robot_config[robot_id]["ip_address"]
             self.robots[robot_id] = RealMan(robot_id, ip_address)
             self.robots[robot_id].connect()
             logger.success(f"RealMan Robot {robot_id} Connect Success!")
@@ -90,7 +90,7 @@ class MultiRealMan(RobotBase):
             logger.info(f"RealMan Robot {robot_id} Disconnect Success!")
 
     def get_robot_ids(self) -> List[str]:
-        return self.robot_config["robot_ids"]
+        return self.robot_ids
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
         for robot_id, robot in self.robots.items():
@@ -110,7 +110,7 @@ class MultiRealMan(RobotBase):
             robot_state[robot_id] = robot.get_robot_state()
         return robot_state
 
-    def get_dofs(self) -> Dict[str, int]:
+    def get_dofs(self) -> Union[int, Dict[str, int]]:
         dofs = {}
         for robot_id, robot in self.robots.items():
             dofs = robot.get_dofs()

@@ -1,15 +1,18 @@
 [roborpc.robot_env]
+
 [roborpc.robots.realman]
-ip_address = ['192.168.1.18']
-robot_ids = ['realman_left_arm']
-rpc_port = ['4244']
+# ON or OFF
+robot_ids = ['realman_123466789']
+
+[roborpc.robots.realman.realman_123466789]
+ip_address = '192.168.1.18'
+rpc_port = '4244'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
-[roborpc.robots.isaac_sim_franka]
-ip_address = ['127.0.0.1']
-robot_ids = ['single_franka']
-rpc_port = ['4245']
+[roborpc.robots.isaac_sim.isaac_sim_single_franka]
+ip_address = '127.0.0.1'
+rpc_port = '4245'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
@@ -27,3 +30,27 @@ button_B_port = "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"
 [roborpc.controllers.gello_controller]
 controller_ids = ['dynamixel_realman_left_arm']
 rpc_port = ['4245']
+
+[roborpc.collector.data_collector]
+save_data_dir = "/home/eai/Log/droid/data/"
+action_space = "joint_position"
+gripper_action_space = "gripper_position"
+use_one_side_camera = false # olny record left camera
+use_hand_camera = true
+use_left_camera = true
+use_right_camera = true
+use_rgb = true
+use_depth = true
+use_pointcloud = false
+concatenate_images = false
+image_width = 1280 #480
+image_height = 720 #270
+save_data_mode = "H5_FULL" # H5_SVO or H5_FULL or H5_MP4
+save_data_speedup = false # for H5_SVO
+use_zed_save_mp4 = false # for H5_MP4
+save_audio = false
+max_timesteps = 0 # 0 (not used) 1000
+dt = 0.02 # act used
+horizon = 0 # 0 for not used
+use_align_color_depth = false
+camera_fps = 15

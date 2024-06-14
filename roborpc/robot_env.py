@@ -1,13 +1,13 @@
 import threading
-
+import gym
 from roborpc.common.config_loader import config
 
 from roborpc.robots.realman import MultiRealMan as Robot
-from roborpc.robots.isaac_sim_franka_rpc import MultiSimFrankaRpc
-# from roborpc.cameras.realsense_camera import MultiRealSenseCamera as Camera
+from roborpc.robots.isaac_sim_franka_rpc import MultiIsaacSimFrankaRpc
+from roborpc.cameras.realsense_camera import MultiRealSenseCamera
 
 
-class RobotEnv:
+class RobotEnv(gym.Env):
     _single_lock = threading.Lock()
     _instance = None
 
@@ -19,10 +19,12 @@ class RobotEnv:
             return RobotEnv._instance
 
     def _initialize(self):
-        self.robot = MultiSimFrankaRpc()
-        # self.camera = Camera()
+        self.robot = MultiIsaacSimFrankaRpc()
+        self.camera = MultiRealSenseCamera()
 
     def __del__(self):
         self.robot.disconnect()
         self.camera.disconnect()
+
+
 

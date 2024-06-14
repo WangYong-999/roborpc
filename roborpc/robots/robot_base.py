@@ -70,7 +70,7 @@ class RobotBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_dofs(self) -> Dict[str, int]:
+    def get_dofs(self) -> Union[int, Dict[str, int]]:
         """Get the number of joints of the robot.
 
         Returns:
