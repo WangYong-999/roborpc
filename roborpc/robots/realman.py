@@ -72,43 +72,91 @@ class RealMan(RobotBase):
 
 class MultiRealMan(RobotBase):
     def __init__(self, args: argparse.Namespace = None):
+        self.action: Union[List[float], Dict[str, List[float]]]
+        self.action_space: Union[str, Dict[str, str]] = "joint_position"
+        self.blocking: Union[bool, Dict[str, bool]] = False
         self.robot_config = config["roborpc"]["robots"]["realman"]
         self.robots = {}
+        self.threads = {}
+        self.robot_state = {}
+        self.joint_positions = {}
+        self.gripper_positions = {}
+        self.joint_velocities = {}
+        self.ee_poses = {}
+        self.get_robot_state_flag = False
+        self.get_joint_positions_flag = False
+        self.get_gripper_positions_flag = False
+        self.get_joint_velocities_flag = False
+        self.get_ee_pose_flag = False
         self.robot_ids = self.robot_config["robot_ids"][0]
 
     def connect(self):
-        self.robots = {}
         for robot_id in self.robot_ids:
             ip_address = self.robot_config[robot_id]["ip_address"]
             self.robots[robot_id] = RealMan(robot_id, ip_address)
             self.robots[robot_id].connect()
+            self.threads[robot_id] = threading.Thread(target=self.sync_robot_state, args=(robot_id,), daemon=True).start()
             logger.success(f"RealMan Robot {robot_id} Connect Success!")
 
     def disconnect(self):
         for robot_id, robot in self.robots:
             robot.disconnect()
+            self.threads[robot_id].close()
             logger.info(f"RealMan Robot {robot_id} Disconnect Success!")
+
+    def sync_robot_state(self, robot_id: str):
+        while True:
+            try:
+                if self.action_space.get(robot_id) == "joint_position":
+                    self.robots[robot_id].set_joints(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                elif self.action_space.get(robot_id) == "gripper_position":
+                    self.robots[robot_id].set_gripper(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                elif self.action_space.get(robot_id) == "cartesian_position":
+                    self.robots[robot_id].set_ee_pose(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                if self.get_robot_state_flag:
+                    self.get_robot_state_flag = False
+                    self.robot_state[robot_id] = self.robots[robot_id].get_robot_state()
+                if self.get_joint_positions_flag:
+                    self.get_joint_positions_flag = False
+                    self.joint_positions[robot_id] = self.robots[robot_id].get_joint_positions()
+                if self.get_gripper_positions_flag:
+                    self.get_gripper_positions_flag = False
+                    self.gripper_positions[robot_id] = self.robots[robot_id].get_gripper_position()
+                if self.get_joint_velocities_flag:
+                    self.get_joint_velocities_flag = False
+                    self.joint_velocities[robot_id] = self.robots[robot_id].get_joint_velocities()
+                if self.get_ee_pose_flag:
+                    self.get_ee_pose_flag = False
+                    self.ee_poses[robot_id] = self.robots[robot_id].get_ee_pose()
+            except Exception as e:
+                logger.error(f"Sync Robot State Error: {e}")
 
     def get_robot_ids(self) -> List[str]:
         return self.robot_ids
 
-    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_ee_pose(action, action_space, blocking)
-            
-    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_joints(action, action_space, blocking)
+    def set_ee_pose_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position_gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
+        self.action = action
+        self.action_space = action_space
+        self.blocking = blocking
 
-    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "gripper_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_gripper(action, action_space, blocking)
+    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position", blocking: Union[bool, Dict[str, bool]] = False):
+        self.action = action
+        self.action_space = action_space
+        self.blocking = blocking
+
+    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
+        self.action = action
+        self.action_space = action_space
+        self.blocking = blocking
+
+    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
+        self.action = action
+        self.action_space = action_space
+        self.blocking = blocking
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        robot_state = {}
-        for robot_id, robot in self.robots.items():
-            robot_state[robot_id] = robot.get_robot_state()
-        return robot_state
+        self.get_robot_state_flag = True
+        return self.robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
         dofs = {}
@@ -118,28 +166,20 @@ class MultiRealMan(RobotBase):
         return dofs
 
     def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
-        joint_positions = {}
-        for robot_id, robot in self.robots.items():
-            joint_positions[robot_id] = robot.get_joint_positions()
-        return joint_positions
+        self.get_joint_positions_flag = True
+        return self.joint_positions
 
     def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
-        gripper_positions = {}
-        for robot_id, robot in self.robots.items():
-            gripper_positions[robot_id] = robot.get_gripper_position()
-        return gripper_positions
+        self.get_gripper_positions_flag = True
+        return self.gripper_positions
 
     def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
-        joint_velocities = {}
-        for robot_id, robot in self.robots.items():
-            joint_velocities[robot_id] = robot.get_joint_velocities()
-        return joint_velocities
+        self.get_joint_velocities_flag = True
+        return self.joint_velocities
 
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
-        ee_poses = {}
-        for robot_id, robot in self.robots.items():
-            ee_poses[robot_id] = robot.get_ee_pose()
-        return ee_poses
+        self.get_ee_pose_flag = True
+        return self.ee_poses
 
 
 if __name__ == '__main__':

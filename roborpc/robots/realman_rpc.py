@@ -27,18 +27,18 @@ class MultiRealManRpc(RobotBase):
         return self.robots.get_robot_ids()
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
-                    action_space: Union[str, List[str]] = "cartesian_position",
-                    blocking: Union[bool, List[bool]] = False):
-        self.robots.set_ee_pose(action, action_space, blocking)
+                    action_space: Union[str, Dict[str, str]] = "cartesian_position",
+                    blocking: Union[bool, Dict[str, bool]] = False):
+        self.robots.set_ee_pose(action[robot_id], action_space[robot_id], blocking[robot_id])
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
-                   action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
-        self.robots.set_joints(action, action_space, blocking)
+                   action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
+        self.robots.set_joints(action[robot_id], action_space[robot_id], blocking[robot_id])
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
-                    action_space: Union[str, List[str]] = "gripper_position",
-                    blocking: Union[bool, List[bool]] = False):
-        self.robots.set_gripper(action, action_space, blocking)
+                    action_space: Union[str, Dict[str, str]] = "gripper_position",
+                    blocking: Union[bool, Dict[str, bool]] = False):
+        self.robots.set_gripper(action[robot_id], action_space[robot_id], blocking[robot_id])
 
     def get_robot_state(self) -> Dict[str, List[float]]:
         return self.robots.get_robot_state()
@@ -61,44 +61,55 @@ class MultiRealManRpc(RobotBase):
 
 class ComposedMultiRealManRpc(RobotBase):
     def __init__(self):
+        self.robot_ids_server_ips = {}
         self.robot_config = config["roborpc"]["robots"]["realman"]
-        self.robots = None
+        self.multi_robots = {}
 
     def connect(self):
-        all_robot_ids = self.robot_config["robot_ids"]
-        self.robots = {}
-        for robot_id in all_robot_ids:
-            ip_address = self.robot_config[robot_id]["server_ip_address"]
-            rpc_port = self.robot_config[robot_id]["sever_rpc_port"]
-            self.robots[robot_id] = MultiRealManRpc(ip_address, rpc_port)
-            self.robots[robot_id].connect()
-            logger.success(f"RealMan Robot {robot_id} Connect Success!")
+        server_ips_address = self.robot_config["server_ips_address"]
+        sever_rpc_ports = self.robot_config["sever_rpc_ports"]
+        for server_ip_address, sever_rpc_port in zip(server_ips_address, sever_rpc_ports):
+            self.multi_robots[server_ip_address] = MultiRealManRpc(server_ip_address, sever_rpc_port)
+            self.multi_robots[server_ip_address].connect()
+            logger.info(f"RealMan Robot {server_ip_address}:{rpc_port} Connect Success!")
+        self.robot_ids_server_ips = self.get_robot_ids_server_ips()
 
     def disconnect(self):
-        for robot_id, robot in self.robots:
+        for server_ip_address, robot in self.multi_robots.items():
             robot.disconnect()
-            logger.info(f"RealMan Robot {robot_id} Disconnect Success!")
+            logger.info(f"RealMan Robot {server_ip_address} Disconnect Success!")
+
+    def get_robot_ids_server_ips(self) -> Dict[str, str]:
+        robot_ids_server_ips = {}
+        for server_ip_address, robot in self.multi_robots.items():
+            for robot_ids in robot.get_robot_ids():
+                for robot_id in robot_ids:
+                    robot_ids_server_ips[robot_id] = server_ip_address
+        return robot_ids_server_ips
 
     def get_robot_ids(self) -> List[str]:
-        return self.robot_config["robot_ids"]
+        robot_ids = []
+        for server_ip_address, robot in self.multi_robots.items():
+            robot_ids.extend(robot.get_robot_ids())
+        return robot_ids
 
-    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_ee_pose(action, action_space, blocking)
-            
-    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_joints(action, action_space, blocking)
+    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position", blocking: Union[bool, Dict[str, bool]] = False):
+        for server_ip_address, robot in self.multi_robots.items():
+            robot.set_ee_pose(action[robot_id], action_space[robot_id], blocking[robot_id])
 
-    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "gripper_position", blocking: Union[bool, List[bool]] = False):
-        for robot_id, robot in self.robots.items():
-            robot.set_gripper(action, action_space, blocking)
+    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
+        for robot_id in self.robot_ids:
+            robot.set_joints(action[robot_id], action_space[robot_id], blocking[robot_id])
+
+    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
+        for robot_id in self.robot_ids:
+            multi_robots.set_gripper(action[robot_id], action_space[robot_id], blocking[robot_id])
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        robot_state = {}
-        for robot_id, robot in self.robots.items():
-            robot_state[robot_id] = robot.get_robot_state()
-        return robot_state
+        robot_states = {}
+        for robot_id in self.robot_ids:
+            robot_states[robot_id] = multi_robots.get_robot_state()
+        return robot_states
 
     def get_dofs(self) -> Dict[str, int]:
         dofs = {}

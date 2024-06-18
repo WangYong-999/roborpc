@@ -1,16 +1,12 @@
 [roborpc.robot_env]
 
 [roborpc.robots]
-# ON or OFF
-robot_ids = [['realman_1', 'realman_2'], ['realman_3', 'realman_4']]
-server_ip_address = [['192.168.1.100'], ['192.168.1.101']]
-sever_rpc_port = [['4244'], ['4245']]
 
 [roborpc.robots.realman]
 # ON or OFF
 robot_ids = [['realman_1', 'realman_2'], ['realman_3', 'realman_4']]
-server_ip_address = [['192.168.1.100'], ['192.168.1.101']]
-sever_rpc_port = [['4244'], ['4245']]
+server_ips_address = ['192.168.1.100', '192.168.1.101']
+sever_rpc_ports = ['4244', '4245']
 
 [roborpc.robots.realman.realman_1]
 ip_address = '192.168.1.18'

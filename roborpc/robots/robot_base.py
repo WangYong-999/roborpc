@@ -31,7 +31,7 @@ class RobotBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
+    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position", blocking: Union[bool, Dict[str, bool]] = False):
         """
         Update the pose of the robot.
         :param action: The action to be executed.
@@ -41,7 +41,7 @@ class RobotBase(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
+    def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
         """
         Update the joints of the robot.
         :param action: The action to be executed.
@@ -51,7 +51,7 @@ class RobotBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "gripper_position", blocking: Union[bool, List[bool]] = False):
+    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
         """
         Update the gripper of the robot.
         :param action: The action to be executed.
