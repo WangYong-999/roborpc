@@ -15,8 +15,12 @@ from roborpc.common.logger_loader import logger
 
 
 class GelloControllerRpc(ControllerBase):
-    def __init__(self, robot):
-        super().__init__(robot)
+
+    def __init__(self, controller_id: str, ip_address: str, rpc_port: str = '4245'):
+        self.controller_id = controller_id
+        self.ip_address = ip_address
+        self.rpc_port = rpc_port
+        self.controller = None
 
     def connect(self):
         self.controller = zerorpc.Client(heartbeat=20)
@@ -26,36 +30,28 @@ class GelloControllerRpc(ControllerBase):
         pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
-        return {
-            "success": self._state["buttons"]["A"],
-            "failure": self._state["buttons"]["B"],
-            "movement_enabled": self._state["movement_enabled"],
-            "controller_on": self._state["controller_on"],
-        }
+        return self.controller.get_info()
 
     def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]):
-        if not self._goto_start_pos:
-            self.go_start_joints(obs_dict["robot_state"])
-        return self.calculate_action()
+        return self.controller.forward(obs_dict)
 
 
 class MultiGelloControllerRpc(ControllerBase):
     def __init__(self):
         self.gello_controllers = {}
-        self.gello_controller_ids = common_config["roborpc"]["controllers"]["gello_controller"]["controller_ids"]
-        self.robots_config = common_config["roborpc"]["robots"]["dynamixel"]
-        for controller_id in self.gello_controller_ids:
-            self.gello_controllers[controller_id] = GelloController(
-                Dynamixel(
-                    robot_id=controller_id,
-                    joint_ids=self.robots_config[controller_id]["joint_ids"],
-                    joint_signs=self.robots_config[controller_id]["joint_signs"],
-                    joint_offsets=self.robots_config[controller_id]["joint_offsets"],
-                    start_joints=self.robots_config[controller_id]["start_joints"],
-                    port=self.robots_config[controller_id]["port"],
-                    gripper_config=self.robots_config[controller_id]["gripper_config"]
-                ),
-            )
+
+    def connect(self):
+        robot_ids = self.robot_config["robot_ids"]
+        self.robots = {}
+        for idx, robot_id in enumerate(robot_ids):
+            ip_address = self.robot_config["ip_address"][idx]
+            rpc_port = self.robot_config["rpc_port"][idx]
+            self.robots[robot_id] = RealManRpc(robot_id, ip_address, rpc_port)
+            self.robots[robot_id].connect()
+            logger.success(f"RealMan Robot {robot_id} Connect Success!")
+
+    def disconnect(self):
+        pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         info_dict = {}

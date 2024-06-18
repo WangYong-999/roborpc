@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 __all__ = ['DEFAULT_LOG_PATH', 'enable_execution_logger', 'logger']
 
-_PROJECT_NAME = 'projectx'
+_PROJECT_NAME = 'roborpc'
 DEFAULT_LOG_PATH = os.path.join('/home', 'Log', _PROJECT_NAME)
 if platform.machine() == 'x86_64':
     env_path = os.getenv('DEFAULT_LOG_PATH')

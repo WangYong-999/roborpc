@@ -1,18 +1,50 @@
 [roborpc.robot_env]
 
+[roborpc.robots]
+# ON or OFF
+robot_ids = [['realman_1', 'realman_2'], ['realman_3', 'realman_4']]
+server_ip_address = [['192.168.1.100'], ['192.168.1.101']]
+sever_rpc_port = [['4244'], ['4245']]
+
 [roborpc.robots.realman]
 # ON or OFF
-robot_ids = ['realman_123466789']
+robot_ids = [['realman_1', 'realman_2'], ['realman_3', 'realman_4']]
+server_ip_address = [['192.168.1.100'], ['192.168.1.101']]
+sever_rpc_port = [['4244'], ['4245']]
 
-[roborpc.robots.realman.realman_123466789]
+[roborpc.robots.realman.realman_1]
 ip_address = '192.168.1.18'
-rpc_port = '4244'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
+[roborpc.robots.realman.realman_2]
+ip_address = '192.168.1.19'
+robot_arm_dof = 6
+robot_gripper_dof = 1
+
+[roborpc.robots.realman.realman_3]
+ip_address = '192.168.1.20'
+robot_arm_dof = 7
+robot_gripper_dof = 1
+
+[roborpc.robots.realman.realman_4]
+ip_address = '192.168.1.21'
+robot_arm_dof = 7
+robot_gripper_dof = 1
+
+[roborpc.robots.franka.panda_1]
+ip_address = '192.168.1.20'
+robot_arm_dof = 7
+robot_gripper_dof = 1
+
+[roborpc.robots.franka.panda_2]
+ip_address = '192.168.1.21'
+robot_arm_dof = 7
+robot_gripper_dof = 1
+
+
 [roborpc.robots.isaac_sim.isaac_sim_single_franka]
 ip_address = '127.0.0.1'
-rpc_port = '4245'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
@@ -54,3 +86,58 @@ dt = 0.02 # act used
 horizon = 0 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
+
+[roborpc.sim_robots]
+daemon_host=''
+daemon_port=6026
+
+[roborpc.sim_robots.isaac_sim]
+skip_rendering = false
+task_host=''
+task_port=6028
+rpc_port=4245
+env_usd_path = '/home/jz08/code_repo/franka_isaac/scenes/franka_06_17.usd'
+robot_usd_path = '/home/jz08/code_repo/franka_isaac/scenes/default_environment.usd'
+
+[roborpc.sim_robots.isaac_sim.single_franka_vision]
+namespace_root = '/root'  # i.e., the robot Xform prefix
+namespace = '/root/panda'  # i.e., the robot Xform prefix
+init_position=[0, 0, 0]  # in unit cm
+init_orientation=[0.0, 0.0, 0.0]  # in unit degree
+
+[roborpc.sim_robots.isaac_sim.single_franka_vision.handeye_camera]
+name = '/camera_handeye'
+offset = [-0.11, 0.0, 0.0]
+orientation = [180.0, 0.0, 0.0]
+width = 640
+height = 400
+hori_aperture = 4.612866125858013
+vert_aperture = 2.883041328661258
+projection = 'perspective'
+focal_length = 3.00312
+focus_distance = 400
+
+
+[roborpc.sim_robots.isaac_sim.single_franka_vision.varied_1_camera]
+name = '/varied_1_camera'
+offset = [-0.2, 0.9, 0.7]
+orientation = [-120.0, 180.0, 56.0]
+width = 640
+height = 480
+hori_aperture = 1.9215
+vert_aperture = 1.44
+projection = 'perspective'
+focal_length = 1.25
+focus_distance = 400
+
+[roborpc.sim_robots.isaac_sim.single_franka_vision.varied_2_camera]
+name = '/varied_2_camera'
+offset = [-0.3, 0.5, 0.23]
+orientation = [-81.0, 56.0, 152.0]
+width = 640
+height = 480
+hori_aperture = 1.9215
+vert_aperture = 1.44
+projection = 'perspective'
+focal_length = 1.25
+focus_distance = 400

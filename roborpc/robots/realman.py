@@ -74,11 +74,11 @@ class MultiRealMan(RobotBase):
     def __init__(self, args: argparse.Namespace = None):
         self.robot_config = config["roborpc"]["robots"]["realman"]
         self.robots = {}
-        self.robot_ids = self.robot_config["robot_ids"]
+        self.robot_ids = self.robot_config["robot_ids"][0]
 
     def connect(self):
         self.robots = {}
-        for idx, robot_id in enumerate(self.robot_ids):
+        for robot_id in self.robot_ids:
             ip_address = self.robot_config[robot_id]["ip_address"]
             self.robots[robot_id] = RealMan(robot_id, ip_address)
             self.robots[robot_id].connect()
@@ -154,5 +154,8 @@ if __name__ == '__main__':
 
     multi_realman = MultiRealMan()
     s = zerorpc.Server(multi_realman)
-    s.bind(f"tcp://0.0.0.0:{multi_realman.robot_config['rpc_port'][0]}")
+    robot_id = multi_realman.robot_ids[0]
+    rpc_port = multi_realman.robot_config[robot_id]['rpc_port']
+    logger.info(f"RPC Server Start on {rpc_port}")
+    s.bind(f"tcp://0.0.0.0:{rpc_port}")
     s.run()
