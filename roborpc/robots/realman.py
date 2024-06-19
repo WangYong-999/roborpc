@@ -72,7 +72,9 @@ class RealMan(RobotBase):
 
 class MultiRealMan(RobotBase):
     def __init__(self, args: argparse.Namespace = None):
-        self.action: Union[List[float], Dict[str, List[float]]]
+        self.ee_action: Union[List[float], Dict[str, List[float]]]
+        self.joints_action: Union[List[float], Dict[str, List[float]]]
+        self.gripper_action: Union[List[float], Dict[str, List[float]]]
         self.action_space: Union[str, Dict[str, str]] = "joint_position"
         self.blocking: Union[bool, Dict[str, bool]] = False
         self.robot_config = config["roborpc"]["robots"]["realman"]
@@ -108,11 +110,13 @@ class MultiRealMan(RobotBase):
         while True:
             try:
                 if self.action_space.get(robot_id) == "joint_position":
-                    self.robots[robot_id].set_joints(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                    self.robots[robot_id].set_joints(self.joints_action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
                 elif self.action_space.get(robot_id) == "gripper_position":
-                    self.robots[robot_id].set_gripper(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                    self.robots[robot_id].set_gripper(self.gripper_action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
                 elif self.action_space.get(robot_id) == "cartesian_position":
-                    self.robots[robot_id].set_ee_pose(self.action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                    self.robots[robot_id].set_ee_pose(self.ee_action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+                elif self.action_space.get(robot_id) == "joint_position_gripper_position":
+                    self.robots[robot_id].set_joints(self.joints_action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
                 if self.get_robot_state_flag:
                     self.get_robot_state_flag = False
                     self.robot_state[robot_id] = self.robots[robot_id].get_robot_state()
@@ -130,27 +134,32 @@ class MultiRealMan(RobotBase):
                     self.ee_poses[robot_id] = self.robots[robot_id].get_ee_pose()
             except Exception as e:
                 logger.error(f"Sync Robot State Error: {e}")
+                break
+
+    def sync_robot_arm_state(self, robot_id: str):
+        while True:
+            try:
+                if self.action_space.get(robot_id) == "joint_position":
+                    self.robots[robot_id].set_joints(self.joints_action[robot_id], self.action_space[robot_id], self.blocking[robot_id])
+            except Exception as e:
+                logger.error(f"Sync Robot State Error: {e}")
+                break
 
     def get_robot_ids(self) -> List[str]:
         return self.robot_ids
 
-    def set_ee_pose_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position_gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
-        self.action = action
-        self.action_space = action_space
-        self.blocking = blocking
-
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "cartesian_position", blocking: Union[bool, Dict[str, bool]] = False):
-        self.action = action
+        self.ee_action = action
         self.action_space = action_space
         self.blocking = blocking
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
-        self.action = action
+        self.joints_action = action
         self.action_space = action_space
         self.blocking = blocking
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, Dict[str, str]] = "gripper_position", blocking: Union[bool, Dict[str, bool]] = False):
-        self.action = action
+        self.gripper_action = action
         self.action_space = action_space
         self.blocking = blocking
 
