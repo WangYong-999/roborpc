@@ -15,13 +15,12 @@ class MultiRealManRpc(RobotBase):
         self.rpc_port = rpc_port
         self.robots = None
 
-    def connect(self):
+    def connect_now(self):
         self.robots = zerorpc.Client(heartbeat=20)
-        self.robots.connect("tcp://" + self.server_ip_address + ":" + self.rpc_port)
-        self.robots.connect()
+        self.robots.connect_now("tcp://" + self.server_ip_address + ":" + self.rpc_port)
 
-    def disconnect(self):
-        self.robots.disconnect()
+    def disconnect_now(self):
+        self.robots.disconnect_now()
 
     def get_robot_ids(self) -> List[str]:
         return self.robots.get_robot_ids()
@@ -29,16 +28,16 @@ class MultiRealManRpc(RobotBase):
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "cartesian_position",
                     blocking: Union[bool, Dict[str, bool]] = False):
-        self.robots.set_ee_pose(action[robot_id], action_space[robot_id], blocking[robot_id])
+        self.robots.set_ee_pose(action, action_space, blocking)
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
                    action_space: Union[str, Dict[str, str]] = "joint_position", blocking: Union[bool, Dict[str, bool]] = False):
-        self.robots.set_joints(action[robot_id], action_space[robot_id], blocking[robot_id])
+        self.robots.set_joints(action, action_space, blocking)
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "gripper_position",
                     blocking: Union[bool, Dict[str, bool]] = False):
-        self.robots.set_gripper(action[robot_id], action_space[robot_id], blocking[robot_id])
+        self.robots.set_gripper(action, action_space, blocking)
 
     def get_robot_state(self) -> Dict[str, List[float]]:
         return self.robots.get_robot_state()
@@ -65,18 +64,18 @@ class ComposedMultiRealManRpc(RobotBase):
         self.robot_config = config["roborpc"]["robots"]["realman"]
         self.multi_robots = {}
 
-    def connect(self):
+    def connect_now(self):
         server_ips_address = self.robot_config["server_ips_address"]
         sever_rpc_ports = self.robot_config["sever_rpc_ports"]
         for server_ip_address, sever_rpc_port in zip(server_ips_address, sever_rpc_ports):
             self.multi_robots[server_ip_address] = MultiRealManRpc(server_ip_address, sever_rpc_port)
-            self.multi_robots[server_ip_address].connect()
+            self.multi_robots[server_ip_address].connect_now()
             logger.info(f"RealMan Robot {server_ip_address}:{rpc_port} Connect Success!")
         self.robot_ids_server_ips = self.get_robot_ids_server_ips()
 
-    def disconnect(self):
+    def disconnect_now(self):
         for server_ip_address, robot in self.multi_robots.items():
-            robot.disconnect()
+            robot.disconnect_now()
             logger.info(f"RealMan Robot {server_ip_address} Disconnect Success!")
 
     def get_robot_ids_server_ips(self) -> Dict[str, str]:

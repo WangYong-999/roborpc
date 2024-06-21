@@ -7,10 +7,10 @@ class SimRobotInterface(RobotBase):
     def __init__(self, robot):
         self.robot = robot
 
-    def connect(self):
-        self.robot.connect()
+    def connect_now(self):
+        self.robot.connect_now()
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def get_robot_ids(self) -> List[str]:

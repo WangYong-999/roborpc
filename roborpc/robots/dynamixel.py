@@ -65,7 +65,7 @@ class Dynamixel(RobotBase):
             np.abs(self._joint_signs) == 1
         ), f"joint_signs: {self._joint_signs}"
 
-    def connect(self):
+    def connect_now(self):
         self._driver = DynamixelDriver(self._joint_ids, port=self.port, baudrate=57600)
         self._driver.set_torque_mode(False)
 
@@ -90,7 +90,7 @@ class Dynamixel(RobotBase):
                 new_joint_offsets.append(self._joint_offsets[-1])
             self._joint_offsets = np.array(new_joint_offsets)
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def get_robot_ids(self) -> List[str]:

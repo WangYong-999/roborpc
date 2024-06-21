@@ -22,11 +22,11 @@ class GelloControllerRpc(ControllerBase):
         self.rpc_port = rpc_port
         self.controller = None
 
-    def connect(self):
+    def connect_now(self):
         self.controller = zerorpc.Client(heartbeat=20)
-        self.controller.connect("tcp://" + self.ip_address + ":" + self.rpc_port)
+        self.controller.connect_now("tcp://" + self.ip_address + ":" + self.rpc_port)
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
@@ -40,17 +40,17 @@ class MultiGelloControllerRpc(ControllerBase):
     def __init__(self):
         self.gello_controllers = {}
 
-    def connect(self):
+    def connect_now(self):
         robot_ids = self.robot_config["robot_ids"]
         self.robots = {}
         for idx, robot_id in enumerate(robot_ids):
             ip_address = self.robot_config["ip_address"][idx]
             rpc_port = self.robot_config["rpc_port"][idx]
             self.robots[robot_id] = RealManRpc(robot_id, ip_address, rpc_port)
-            self.robots[robot_id].connect()
+            self.robots[robot_id].connect_now()
             logger.success(f"RealMan Robot {robot_id} Connect Success!")
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:

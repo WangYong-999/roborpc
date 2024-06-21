@@ -10,14 +10,14 @@ class RobotBase(ABC):
     """
 
     @abstractmethod
-    def connect(self):
+    def connect_now(self):
         """
         Connect to the robot.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def disconnect(self):
+    def disconnect_now(self):
         """
         Disconnect from the robot.
         """

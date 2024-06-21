@@ -35,16 +35,16 @@ class GelloController(ControllerBase):
         threading.Thread(target=self._update_internal_state).start()
         time.sleep(3)
 
-    def connect(self):
+    def connect_now(self):
         logger.info("Gello Controller Initialized")
-        self._robot.connect()
+        self._robot.connect_now()
         self.controller_id = self._robot.robot_id
         self.reset_state()
 
         assert np.allclose(np.array(self._robot.get_robot_state()["robot_positions"]), self._robot.start_joints, rtol=2,
                            atol=2)
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def run_key_listen(self):
@@ -227,7 +227,7 @@ class MultiGelloController(ControllerBase):
         self.gello_controller_ids = self.gello_controller_config["controller_ids"]
         self.robots_config = common_config["roborpc"]["robots"]["dynamixel"]
 
-    def connect(self):
+    def connect_now(self):
         for controller_id in self.gello_controller_ids:
             self.gello_controllers[controller_id] = GelloController(
                 Dynamixel(
@@ -240,9 +240,9 @@ class MultiGelloController(ControllerBase):
                     gripper_config=self.robots_config[controller_id]["gripper_config"]
                 ),
             )
-            self.gello_controllers[controller_id].connect()
+            self.gello_controllers[controller_id].connect_now()
 
-    def disconnect(self):
+    def disconnect_now(self):
         pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:

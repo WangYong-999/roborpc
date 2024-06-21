@@ -3,7 +3,7 @@ import gym
 from roborpc.common.config_loader import config
 
 from roborpc.robots.realman import MultiRealMan as Robot
-from roborpc.robots.isaac_sim_franka_rpc import MultiIsaacSimFrankaRpc
+from roborpc.robots.composed_sim_robots import MultiIsaacSimFrankaRpc
 from roborpc.cameras.realsense_camera import MultiRealSenseCamera
 
 
@@ -23,8 +23,8 @@ class RobotEnv(gym.Env):
         self.camera = MultiRealSenseCamera()
 
     def __del__(self):
-        self.robot.disconnect()
-        self.camera.disconnect()
+        self.robot.disconnect_now()
+        self.camera.disconnect_now()
 
 
 

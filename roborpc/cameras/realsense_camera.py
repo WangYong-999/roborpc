@@ -17,7 +17,7 @@ class RealSenseCamera(CameraBase):
         self._pipeline = None
         self.cfg = None
 
-    def connect(self):
+    def connect_now(self):
         self._pipeline = rs.pipeline()
         config = rs.config()
         config.enable_device(self.device_id)
@@ -26,7 +26,7 @@ class RealSenseCamera(CameraBase):
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
         self.cfg = self._pipeline.start(config)
 
-    def disconnect(self):
+    def disconnect_now(self):
         self._pipeline.stop()
         self._pipeline = None
         self.device_id = None
@@ -82,15 +82,15 @@ class MultiRealSenseCamera(CameraBase):
         self.intrinsics = {}
         self.extrinsics = {}
 
-    def connect(self):
+    def connect_now(self):
         for camera in self.cameras:
-            camera.connect()
+            camera.connect_now()
             self.intrinsics.update(camera.get_camera_intrinsics())
             self.extrinsics.update(camera.get_camera_extrinsics())
 
-    def disconnect(self):
+    def disconnect_now(self):
         for camera in self.cameras:
-            camera.disconnect()
+            camera.disconnect_now()
 
     def get_device_ids(self) -> List[str]:
         ctx = rs.context()

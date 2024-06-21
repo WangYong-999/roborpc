@@ -8,12 +8,12 @@ import numpy as np
 class CameraBase(ABC):
 
     @abstractmethod
-    def connect(self):
+    def connect_now(self):
         """Connect to the camera."""
         raise NotImplementedError
 
     @abstractmethod
-    def disconnect(self):
+    def disconnect_now(self):
         """Disconnect from the camera."""
         raise NotImplementedError
 
