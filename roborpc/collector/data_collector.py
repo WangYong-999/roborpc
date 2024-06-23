@@ -43,7 +43,7 @@ class DataCollector:
             os.makedirs(self.failure_logdir)
             logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
 
-    def collect_trajectory(self, info=None, practice=False, reset_robot=True, save_images=False):
+    def collect_trajectory(self, info=None, practice=False, reset_robot=True, random_reset=False):
         self.last_traj_name = time.asctime().replace(" ", "_")
 
         if info is None:
@@ -61,19 +61,14 @@ class DataCollector:
 
         # Collect Trajectory #
         self.traj_running = True
-        if config["droid"]["robot"]["robot_mode"] == 'real':
-            self.env.establish_connection()
         controller_info = collect_trajectory(
             self.env,
             controller=self.controller,
+            hdf5_file=save_filepath,
             horizon=self.horizon,
             metadata=info,
-            obs_pointer=self.obs_pointer,
+            random_reset=random_reset,
             reset_robot=reset_robot,
-            recording_folder_path=recording_folder_path,
-            save_filepath=save_filepath,
-            save_images=save_images,
-            wait_for_controller=True,
         )
         self.traj_running = False
         self.obs_pointer = {}

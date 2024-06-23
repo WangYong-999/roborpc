@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-
-### Conversions ###
 def quat_to_euler(quat, degrees=False):
     euler = R.from_quat(quat).as_euler("xyz", degrees=degrees)
     return euler

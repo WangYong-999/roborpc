@@ -1,94 +1,58 @@
-import base64
+import threading
 import time
+from collections import defaultdict
 from copy import deepcopy
+from queue import Queue, Empty
+from typing import Dict, Optional, List, Callable, Union
 
+import cv2
+import numpy as np
 from PIL import Image
-# import sounddevice as sd
+import h5py
 
-from droid.utils.calibration_utils.calibration_utils import *
-from droid.utils.camera_utils.info import camera_type_to_string_dict
-from droid.utils.camera_utils.wrappers.recorded_multi_camera_wrapper import RecordedMultiCameraWrapper
-from droid.utils.data_utils.parameters import *
-from droid.utils.data_utils.time import time_ms
-from droid.utils.data_utils.transformations import change_pose_frame
-from droid.utils.trajectory_utils.trajectory_reader import TrajectoryReader
-from droid.utils.trajectory_utils.trajectory_writer import TrajectoryWriter
-from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
+from roborpc.controllers.composed_multi_controllers import ComposedMultiController
+from roborpc.robot_env import RobotEnv
 
 
 def collect_trajectory(
-    env,
-    controller=None,
-    horizon=None,
-    save_filepath=None,
-    metadata=None,
-    wait_for_controller=False,
-    obs_pointer=None,
-    save_images=False,
-    recording_folder_path=False,
-    randomize_reset=False,
-    reset_robot=True,
+        env: RobotEnv,
+        controller: ComposedMultiController,
+        horizon: Optional[int] = None,
+        hdf5_file: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        random_reset: bool = False,
+        reset_robot: bool = True,
 ):
-    assert (controller is not None) or (horizon is not None)
-    if wait_for_controller:
-        assert controller is not None
-    if obs_pointer is not None:
-        assert isinstance(obs_pointer, dict)
-    if save_images:
-        assert save_filepath is not None
-
-    if controller is not None:
-        controller.reset_state()
-    env.camera_reader.set_trajectory_mode()
-
-    if save_filepath:
-        traj_writer = TrajectoryWriter(save_filepath, metadata=metadata)
-    if recording_folder_path:
-        env.camera_reader.start_recording(recording_folder_path)
+    traj_writer = None
+    if hdf5_file:
+        traj_writer = TrajectoryWriter(hdf5_file, metadata=metadata)
 
     num_steps = 0
     if reset_robot:
-        env.reset(randomize=randomize_reset)
-
-    collect_config = config["droid"]["collector"]
-    if config["droid"]["collector"]["save_audio"]:
-        # print(sd.query_devices())
-        # import ipdb; ipdb.set_trace()
-        sd.default.device = "USB PnP Sound Device"
-        video_duration = config["droid"]["collector"]["max_timesteps"] * dt  # Total duration of the episode.
-        audio_duration = video_duration + 140  # add time to account for latency
-        audio_sampling_rate = 48000  # Standard sampling rate for this device
-        audio_recording = sd.rec(
-            int(audio_duration * audio_sampling_rate),
-            samplerate=audio_sampling_rate,
-            channels=1,
-        )
-        audio_start = time.time()
+        env.reset(random_reset=random_reset)
 
     # Begin! #
     logger.info("press button to move arm!")
     while True:
         controller_info = {} if (controller is None) else controller.get_info()
-        skip_action = wait_for_controller and (not controller_info["movement_enabled"])
-        control_timestamps = {"step_start": time_ms()}
+        skip_action = not controller_info["movement_enabled"]
+        control_timestamps = {"step_start": time.time_ns() / 1_000_000}
 
         obs = env.get_observation()
-        if obs_pointer is not None:
-            obs_pointer.update(obs)
         obs["controller_info"] = controller_info
         obs["timestamp"]["skip_action"] = skip_action
 
-        control_timestamps["policy_start"] = time_ms()
-        action, controller_action_info = controller.forward(obs, include_info=True)
+        control_timestamps["policy_start"] = time.time_ns() / 1_000_000
+        action, controller_action_info = controller.forward(obs)
 
-        control_timestamps["sleep_start"] = time_ms()
-        comp_time = time_ms() - control_timestamps["step_start"]
-        sleep_left = (1 / env.control_hz) - (comp_time / 1000)
+        control_timestamps["sleep_start"] = time.time_ns() / 1_000_000
+        comp_time = time.time_ns() / 1_000_000 - control_timestamps["step_start"]
+        sleep_left = (1 / env.env_update_rate) - (comp_time / 1000)
         if sleep_left > 0:
             time.sleep(sleep_left)
 
-        control_timestamps["control_start"] = time_ms()
+        control_timestamps["control_start"] = time.time_ns() / 1_000_000
         if skip_action:
             logger.info(f"skip action: {action}")
             action_info = env.create_action_dict(np.zeros_like(action), action_space=env.action_space)
@@ -97,10 +61,10 @@ def collect_trajectory(
             action_info = env.step(action)
         action_info.update(controller_action_info)
 
-        control_timestamps["step_end"] = time_ms()
+        control_timestamps["step_end"] = time.time_ns() / 1_000_000
         obs["timestamp"]["control"] = control_timestamps
         timestep = {"observation": obs, "action": action_info}
-        if save_filepath:
+        if hdf5_file:
             traj_writer.write_timestep(timestep)
 
         num_steps += 1
@@ -110,279 +74,47 @@ def collect_trajectory(
             end_traj = controller_info["success"] or controller_info["failure"]
 
         if end_traj:
-            if recording_folder_path:
-                env.camera_reader.stop_recording()
-            if save_filepath:
+            if hdf5_file:
                 traj_writer.close(metadata=controller_info)
             return controller_info
 
 
-def calibrate_camera(
-    env,
-    camera_id,
-    controller,
-    step_size=0.01,
-    pause_time=0.5,
-    image_freq=10,
-    obs_pointer=None,
-    wait_for_controller=False,
-    reset_robot=True,
-):
-    """Returns true if calibration was successful, otherwise returns False
-    3rd Person Calibration Instructions: Press A when board in aligned with the camera from 1 foot away.
-    Hand Calibration Instructions: Press A when the hand camera is aligned with the board from 1 foot away."""
+def replay_trajectory(env: RobotEnv, hdf5_filepath: str, read_color: bool = True, read_depth: bool = True):
 
-    if obs_pointer is not None:
-        assert isinstance(obs_pointer, dict)
-
-    # Get Camera + Set Calibration Mode #
-    camera = env.camera_reader.get_camera(camera_id)
-    env.camera_reader.set_calibration_mode(camera_id)
-    assert pause_time > (camera.latency / 1000)
-
-    # Select Proper Calibration Procedure #
-    hand_camera = camera.serial_number == hand_camera_id
-    intrinsics_dict = camera.get_intrinsics()
-    if hand_camera:
-        calibrator = HandCameraCalibrator(intrinsics_dict)
-    else:
-        calibrator = ThirdPersonCameraCalibrator(intrinsics_dict)
-
-    if reset_robot:
-        env.reset()
-    controller.reset_state()
-
-    while True:
-        controller_info = controller.get_info()
-        start_time = time.time()
-
-        state, _ = env.get_state()
-        cam_obs, _ = env.read_cameras()
-
-        for full_cam_id in cam_obs["image"]:
-            if camera_id not in full_cam_id:
-                continue
-            cam_obs["image"][full_cam_id] = calibrator.augment_image(full_cam_id, cam_obs["image"][full_cam_id])
-        if obs_pointer is not None:
-            obs_pointer.update(cam_obs)
-
-        action = controller.forward({"robot_state": state})
-        action[-1] = 0  # Keep gripper open
-
-        comp_time = time.time() - start_time
-        sleep_left = (1 / env.control_hz) - comp_time
-        if sleep_left > 0:
-            time.sleep(sleep_left)
-
-        # Step Environment #
-        skip_step = wait_for_controller and (not controller_info["movement_enabled"])
-        if not skip_step:
-            env.step(action)
-
-        # Check Termination #
-        start_calibration = controller_info["success"]
-        end_calibration = controller_info["failure"]
-
-        # Close Files And Return #
-        if start_calibration:
-            break
-        if end_calibration:
-            return False
-
-    # Collect Data #
-    time.time()
-    pose_origin = state["cartesian_position"]
-    i = 0
-    
-    while True:
-        # Check For Termination #
-        controller_info = controller.get_info()
-        if controller_info["failure"]:
-            return False
-
-        # Start #
-        start_time = time.time()
-        take_picture = (i % image_freq) == 0
-
-        # Collect Observations #
-        if take_picture:
-            time.sleep(pause_time)
-        state, _ = env.get_state()
-        cam_obs, _ = env.read_cameras()
-
-        # Add Sample + Augment Images #
-        for full_cam_id in cam_obs["image"]:
-            if camera_id not in full_cam_id:
-                continue
-            if take_picture:
-                img = deepcopy(cam_obs["image"][full_cam_id])
-                pose = state["cartesian_position"].copy()
-                calibrator.add_sample(full_cam_id, img, pose)
-            cam_obs["image"][full_cam_id] = calibrator.augment_image(full_cam_id, cam_obs["image"][full_cam_id])
-
-        # Update Obs Pointer #
-        if obs_pointer is not None:
-            obs_pointer.update(cam_obs)
-
-        # Move To Desired Next Pose #
-        calib_pose = calibration_traj(i * step_size, hand_camera=hand_camera)
-        desired_pose = change_pose_frame(calib_pose, pose_origin)
-        action = np.concatenate([desired_pose, [0]])
-        env.update_robot(action, action_space="cartesian_position", blocking=False)
-
-        # Regularize Control Frequency #
-        comp_time = time.time() - start_time
-        sleep_left = (1 / env.control_hz) - comp_time
-        if sleep_left > 0:
-            time.sleep(sleep_left)
-
-        # Check If Cycle Complete #
-        cycle_complete = (i * step_size) >= (2 * np.pi)
-        if cycle_complete:
-            break
-        i += 1
-    # SAVE INTO A JSON
-    for full_cam_id in cam_obs["image"]:
-        print(f"full_cam_id: {full_cam_id}")
-        print(f"camera_id: {camera_id}")
-        if camera_id not in full_cam_id:
-            continue
-        success = calibrator.is_calibration_accurate(full_cam_id)
-        if not success:
-            print("cali failed")
-            return False
-        transformation = calibrator.calibrate(full_cam_id)
-        update_calibration_info(full_cam_id, transformation)
-
-    return True
-
-
-def replay_trajectory(
-    env, filepath=None, assert_replayable_keys=["cartesian_position", "gripper_position", "joint_positions"]
-):
-    print("WARNING: STATE 'CLOSENESS' FOR REPLAYABILITY HAS NOT BEEN CALIBRATED")
-    gripper_key = "gripper_velocity" if "velocity" in env.action_space else "gripper_position"
-
-    # Prepare Trajectory Reader #
-    traj_reader = TrajectoryReader(filepath, read_images=False)
+    traj_reader = TrajectoryReader(hdf5_filepath, read_color=read_color, read_depth=read_depth)
     horizon = traj_reader.length()
 
     for i in range(horizon):
-        # Get HDF5 Data #
         timestep = traj_reader.read_timestep()
 
-        # Move To Initial Position #
         if i == 0:
             init_joint_position = timestep["observation"]["robot_state"]["joint_positions"]
             init_gripper_position = timestep["observation"]["robot_state"]["gripper_position"]
             action = np.concatenate([init_joint_position, [init_gripper_position]])
             env.update_robot(action, action_space="joint_position", blocking=True)
 
-        # TODO: Assert Replayability #
-        # robot_state = env.get_state()[0]
-        # for key in assert_replayable_keys:
-        # 	desired = timestep['observation']['robot_state'][key]
-        # 	current = robot_state[key]
-        # 	assert np.allclose(desired, current)
-
-        # Regularize Control Frequency #
         time.sleep(1 / env.control_hz)
 
-        # Get Action In Desired Action Space #
         arm_action = timestep["action"][env.action_space]
-        gripper_action = timestep["action"][gripper_key]
+        gripper_action = timestep["action"][env.gripper_action_space]
         action = np.concatenate([arm_action, [gripper_action]])
         controller_info = timestep["observation"]["controller_info"]
         movement_enabled = controller_info.get("movement_enabled", True)
 
-        # Follow Trajectory #
         if movement_enabled:
             env.step(action)
 
 
-def load_trajectory(
-    filepath=None,
-    read_cameras=True,
-    recording_folderpath=None,
-    camera_kwargs={},
-    remove_skipped_steps=False,
-    num_samples_per_traj=None,
-    num_samples_per_traj_coeff=1.5,
-):
-    read_hdf5_images = read_cameras and (recording_folderpath is None)
-    read_recording_folderpath = read_cameras and (recording_folderpath is not None)
-
-    traj_reader = TrajectoryReader(filepath, read_images=read_hdf5_images)
-    if read_recording_folderpath:
-        camera_reader = RecordedMultiCameraWrapper(recording_folderpath, camera_kwargs)
-
-    horizon = traj_reader.length()
-    timestep_list = []
-
-    # Choose Timesteps To Save #
-    if num_samples_per_traj:
-        num_to_save = num_samples_per_traj
-        if remove_skipped_steps:
-            num_to_save = int(num_to_save * num_samples_per_traj_coeff)
-        max_size = min(num_to_save, horizon)
-        indices_to_save = np.sort(np.random.choice(horizon, size=max_size, replace=False))
-    else:
-        indices_to_save = np.arange(horizon)
-
-    # Iterate Over Trajectory #
-    for i in indices_to_save:
-        # Get HDF5 Data #
-        timestep = traj_reader.read_timestep(index=i)
-
-        # If Applicable, Get Recorded Data #
-        if read_recording_folderpath:
-            timestamp_dict = timestep["observation"]["timestamp"]["cameras"]
-            camera_type_dict = {
-                k: camera_type_to_string_dict[v] for k, v in timestep["observation"]["camera_type"].items()
-            }
-            camera_obs = camera_reader.read_cameras(
-                index=i, camera_type_dict=camera_type_dict, timestamp_dict=timestamp_dict
-            )
-            camera_failed = camera_obs is None
-
-            # Add Data To Timestep If Successful #
-            if camera_failed:
-                break
-            else:
-                timestep["observation"].update(camera_obs)
-
-        # Filter Steps #
-        step_skipped = not timestep["observation"]["controller_info"].get("movement_enabled", True)
-        delete_skipped_step = step_skipped and remove_skipped_steps
-
-        # Save Filtered Timesteps #
-        if delete_skipped_step:
-            del timestep
-        else:
-            timestep_list.append(timestep)
-
-    # Remove Extra Transitions #
-    timestep_list = np.array(timestep_list)
-    if (num_samples_per_traj is not None) and (len(timestep_list) > num_samples_per_traj):
-        ind_to_keep = np.random.choice(len(timestep_list), size=num_samples_per_traj, replace=False)
-        timestep_list = timestep_list[ind_to_keep]
-
-    # Close Readers #
-    traj_reader.close()
-    if read_recording_folderpath:
-        camera_reader.disable_cameras()
-
-    # Return Data #
-    return timestep_list
-
-
-def visualize_timestep(timestep, max_width=1000, max_height=500, aspect_ratio=1.5, pause_time=15):
-    # Process Image Data #
+def visualize_timestep(timestep: Dict,
+                       max_width: int = 1000,
+                       max_height: int = 500,
+                       aspect_ratio: float = 1.5,
+                       pause_time: int = 15):
     obs = timestep["observation"]
-    if "image" in obs:
-        img_obs = obs["image"]
-    elif "image" in obs["camera"]:
-        img_obs = obs["camera"]["image"]
+    if "color" in obs:
+        img_obs = obs["color"]
+    elif "color" in obs["camera"]:
+        img_obs = obs["camera"]["color"]
     else:
         raise ValueError
 
@@ -395,22 +127,19 @@ def visualize_timestep(timestep, max_width=1000, max_height=500, aspect_ratio=1.
         else:
             sorted_image_list.append(data)
 
-    # Get Ideal Number Of Rows #
     num_images = len(sorted_image_list)
-    max_num_rows = int(num_images**0.5)
+    max_num_rows = int(num_images ** 0.5)
     for num_rows in range(max_num_rows, 0, -1):
         num_cols = num_images // num_rows
         if num_images % num_rows == 0:
             break
 
-    # Get Per Image Shape #
     max_img_width, max_img_height = max_width // num_cols, max_height // num_rows
     if max_img_width > aspect_ratio * max_img_height:
         img_width, img_height = max_img_width, int(max_img_width / aspect_ratio)
     else:
         img_width, img_height = int(max_img_height * aspect_ratio), max_img_height
 
-    # Fill Out Image Grid #
     img_grid = [[] for i in range(num_rows)]
 
     for i in range(len(sorted_image_list)):
@@ -418,81 +147,176 @@ def visualize_timestep(timestep, max_width=1000, max_height=500, aspect_ratio=1.
         resized_img = img.resize((img_width, img_height), Image.Resampling.LANCZOS)
         img_grid[i % num_rows].append(np.array(resized_img))
 
-    # Combine Images #
     for i in range(num_rows):
         img_grid[i] = np.hstack(img_grid[i])
     img_grid = np.vstack(img_grid)
 
-    # Visualize Frame #
     cv2.imshow("Image Feed", img_grid)
     cv2.waitKey(pause_time)
 
 
 def visualize_trajectory(
-    filepath,
-    recording_folderpath=None,
-    remove_skipped_steps=False,
-    camera_kwargs={},
-    max_width=1000,
-    max_height=500,
-    aspect_ratio=1.5,
+        hdf5_filepath: str,
+        max_width: Optional[int] = 1000,
+        max_height: Optional[int] = 500,
+        aspect_ratio: Optional[float] = 1.5
 ):
-    traj_reader = TrajectoryReader(filepath, read_images=True)
-    if recording_folderpath:
-        if camera_kwargs is {}:
-            camera_kwargs = defaultdict(lambda: {"image": True})
-        camera_reader = RecordedMultiCameraWrapper(recording_folderpath, camera_kwargs)
+    traj_reader = TrajectoryReader(hdf5_filepath, read_color=True, read_depth=True)
 
     horizon = traj_reader.length()
-    camera_failed = False
 
     for i in range(horizon):
-        print(i)
-        # Get HDF5 Data #
         timestep = traj_reader.read_timestep()
-        # print(timestep["observation"]["image"])
-
-        # If Applicable, Get Recorded Data #
-        if recording_folderpath:
-            timestamp_dict = timestep["observation"]["timestamp"]["cameras"]
-            camera_type_dict = {
-                k: camera_type_to_string_dict[v] for k, v in timestep["observation"]["camera_type"].items()
-            }
-            camera_obs = camera_reader.read_cameras(
-                index=i, camera_type_dict=camera_type_dict, timestamp_dict=timestamp_dict
-            )
-            camera_failed = camera_obs is None
-            print(f"camera_obs:{camera_obs}")
-            # Add Data To Timestep #
-            if not camera_failed:
-                timestep["observation"].update(camera_obs)
-
-        # Filter Steps #
-        step_skipped = not timestep["observation"]["controller_info"].get("movement_enabled", True)
-        delete_skipped_step = step_skipped and remove_skipped_steps
-        delete_step = delete_skipped_step or camera_failed
-        if delete_step:
+        if not timestep["observation"]["controller_info"].get("movement_enabled", True):
             continue
-        # Get Image Info #
-        assert "image" in timestep["observation"]
-        img_obs = timestep["observation"]["image"]
-        # depth_obs = timestep["observation"]["depth"]
-        # pointcloud_obs = timestep["observation"]["pointcloud"]
-        for key in img_obs:
-            rgb_bytes = base64.b64decode(img_obs[key])
-            rgb_np = np.frombuffer(rgb_bytes, dtype=np.uint8)
-            rgb = cv2.imdecode(rgb_np, cv2.IMREAD_COLOR)
-            timestep["observation"]["image"][key] = np.array(rgb)
-
-        camera_ids = list(img_obs.keys())
-        len(camera_ids)
-        camera_ids.sort()
-
-        # Visualize Timestep #
         visualize_timestep(
             timestep, max_width=max_width, max_height=max_height, aspect_ratio=aspect_ratio, pause_time=15
         )
-    # Close Readers #
     traj_reader.close()
-    if recording_folderpath:
-        camera_reader.disable_cameras()
+
+
+class TrajectoryReader:
+    def __init__(self, hdf5_filepath: str, read_color: bool = True, read_depth: bool = True):
+        self._hdf5_file = h5py.File(hdf5_filepath, "r")
+        self._keys_to_ignore = []
+        if read_color:
+            self._keys_to_ignore.append("color")
+        if not read_depth:
+            self._keys_to_ignore.append("depth")
+        self._length = self.get_hdf5_length(self._hdf5_file)
+        self._index = 0
+
+    def length(self):
+        return self._length
+
+    def get_hdf5_length(self, hdf5_file: Union[h5py.File, h5py.Group]):
+        length = None
+        for key in hdf5_file.keys():
+            if key in self._keys_to_ignore:
+                continue
+
+            curr_data = hdf5_file[key]
+            if isinstance(curr_data, h5py.Group):
+                curr_length = self.get_hdf5_length(curr_data)
+            elif isinstance(curr_data, h5py.Dataset):
+                curr_length = len(curr_data)
+            else:
+                raise ValueError
+
+            if length is None:
+                length = curr_length
+            assert curr_length == length
+        return length
+
+    def read_timestep(self, index: Optional[int] = None):
+        if index is None:
+            index = self._index
+        else:
+            self._index = index
+        assert index < self._length
+        timestep = self.load_hdf5_to_dict(self._hdf5_file, self._index)
+
+        self._index += 1
+        return timestep
+
+    def load_hdf5_to_dict(self, hdf5_file: Union[h5py.File, h5py.Group], index: Optional[int]):
+        data_dict = {}
+        for key in hdf5_file.keys():
+            if key in self._keys_to_ignore:
+                continue
+
+            curr_data = hdf5_file[key]
+            if isinstance(curr_data, h5py.Group):
+                data_dict[key] = self.load_hdf5_to_dict(curr_data, index)
+            elif isinstance(curr_data, h5py.Dataset):
+                data_dict[key] = curr_data[index]
+            else:
+                raise ValueError
+
+        return data_dict
+
+    def close(self):
+        self._hdf5_file.close()
+
+
+class TrajectoryWriter:
+    def __init__(self, hdf5_filepath: str, metadata: Optional[Dict] = None,
+                 save_color: bool = True, save_depth: bool = True):
+        self._filepath = hdf5_filepath
+        self._hdf5_file = h5py.File(hdf5_filepath, "w")
+        self._queue_dict = defaultdict(Queue)
+        self._open = True
+        if metadata is not None:
+            self._update_metadata(metadata)
+
+        self._keys_to_ignore = []
+        if not save_color:
+            self._keys_to_ignore.append("color")
+        if not save_depth:
+            self._keys_to_ignore.append("depth")
+
+        def hdf5_writer(data):
+            self.write_dict_to_hdf5(self._hdf5_file, data)
+
+        threading.Thread(target=self._write_from_queue,
+                         args=(hdf5_writer, self._queue_dict["hdf5"]), daemon=True).start()
+
+    def write_dict_to_hdf5(self, hdf5_file: h5py.File, data_dict: defaultdict):
+        try:
+            for key in data_dict.keys():
+                if key in self._keys_to_ignore:
+                    continue
+
+                curr_data = data_dict[key]
+                if type(curr_data) == list:
+                    curr_data = np.array(curr_data)
+                dtype = type(curr_data)
+
+                if dtype == dict:
+                    if key not in hdf5_file:
+                        hdf5_file.create_group(key)
+                    self.write_dict_to_hdf5(hdf5_file[key], curr_data, keys_to_ignore)
+                    continue
+
+                if key not in hdf5_file:
+                    if dtype != np.ndarray:
+                        shape = ()
+                    else:
+                        dtype, shape = curr_data.dtype, curr_data.shape
+                    hdf5_file.create_dataset(key, (1, *shape), maxshape=(None, *shape), dtype=dtype)
+                else:
+                    hdf5_file[key].resize(hdf5_file[key].shape[0] + 1, axis=0)
+
+                hdf5_file[key][-1] = curr_data
+        except Exception as e:
+            logger.error(f"Error writing data to hdf5 file: {e}")
+
+    def write_timestep(self, timestep: Dict):
+        self._queue_dict["hdf5"].put(timestep)
+
+    def _update_metadata(self, metadata: Dict):
+        for key in metadata:
+            self._hdf5_file.attrs[key] = deepcopy(metadata[key])
+
+    def _write_from_queue(self, writer: Callable, queue: Queue):
+        while self._open:
+            try:
+                data = queue.get(timeout=1)
+            except Empty:
+                continue
+            writer(data)
+            queue.task_done()
+
+    def close(self, metadata=None):
+        if metadata is not None:
+            self._update_metadata(metadata)
+
+        for queue in self._queue_dict.values():
+            while not queue.empty():
+                logger.info(f"Waiting cache data {queue.qsize()} join....")
+                time.sleep(1)
+
+        self._hdf5_file.close()
+        self._open = False
+
+        logger.success(f"Trajectory saved to {self._filepath}")

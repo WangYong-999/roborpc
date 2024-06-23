@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from collections import defaultdict
 
@@ -6,10 +7,7 @@ import cv2
 import matplotlib.pyplot as plt
 from cv2 import aruco
 
-from droid.utils.data_utils.parameters import *
-from droid.utils.data_utils.transformations import *
 
-# Create Board #
 CHARUCO_BOARD = aruco.CharucoBoard_create(
     squaresX=CHARUCOBOARD_COLCOUNT,
     squaresY=CHARUCOBOARD_ROWCOUNT,
@@ -18,12 +16,10 @@ CHARUCO_BOARD = aruco.CharucoBoard_create(
     dictionary=ARUCO_DICT,
 )
 
-# Detector Params
 detector_params = cv2.aruco.DetectorParameters_create()
 detector_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS + cv2.CALIB_FIX_PRINCIPAL_POINT + cv2.CALIB_FIX_FOCAL_LENGTH
 
-# Prepare Calibration Info #
 dir_path = os.path.dirname(os.path.realpath(__file__))
 calib_info_filepath = os.path.join(dir_path, "calibration_info.json")
 
@@ -39,7 +35,6 @@ def load_calibration_info(keep_time=False):
 
 
 def update_calibration_info(cam_id, transformation):
-    print('==========================scuuess update cali')
     calibration_info = load_calibration_info(keep_time=True)
     calibration_info[cam_id] = {"pose": list(transformation), "timestamp": time.time()}
 

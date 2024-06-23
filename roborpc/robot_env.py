@@ -1,10 +1,13 @@
 import threading
+import time
+from typing import Dict, List
+
 import gym
 from roborpc.common.config_loader import config
 
-from roborpc.robots.realman import MultiRealMan as Robot
-from roborpc.robots.composed_sim_robots import MultiIsaacSimFrankaRpc
-from roborpc.cameras.realsense_camera import MultiRealSenseCamera
+from roborpc.robots.composed_multi_robots import ComposedMultiRobots
+from roborpc.cameras.composed_multi_cameras import ComposedMultiCameras
+from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 
 
 class RobotEnv(gym.Env):
@@ -19,12 +22,32 @@ class RobotEnv(gym.Env):
             return RobotEnv._instance
 
     def _initialize(self):
-        self.robot = MultiIsaacSimFrankaRpc()
-        self.camera = MultiRealSenseCamera()
+        self.robots = ComposedMultiRobots()
+        self.cameras = ComposedMultiCameras()
+        self.controllers = ComposedMultiController()
+        self.robots.connect_now()
+        self.cameras.connect_now()
+        self.controllers.connect_now()
+
+        self.env_update_rate = config['roborpc']['robot_env']['env_update_rate']
 
     def __del__(self):
-        self.robot.disconnect_now()
-        self.camera.disconnect_now()
+        self.robots.disconnect_now()
+        self.cameras.disconnect_now()
+        self.controllers.disconnect_now()
 
+    def step(self, action):
+        pass
 
+    def reset(self, random_reset: bool = False):
+        pass
+
+    def get_observation(self):
+        observation = {}
+        observation['robots'] = self.robots.get_robot_state()
+        observation['cameras'] = self.cameras.read_camera()
+        return observation
+
+    def collect_data(self):
+        pass
 
