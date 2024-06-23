@@ -1,21 +1,17 @@
 import os
 import time
-from copy import deepcopy
 from datetime import date
 
-import cv2
-import h5py
-
-import droid.utils.trajectory_utils.trajectory_utils as tu
-from droid.utils.calibration_utils.calibration_utils import check_calibration_info
 from roborpc.common.config_loader import config
+from roborpc.common.logger_loader import logger
+from roborpc.collector.data_collector_utils import collect_trajectory
 
 from roborpc.robot_env import RobotEnv
-from roborpc.controllers.gello_controller import MultiGelloController
+from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 
 
 class DataCollector:
-    def __init__(self, env: RobotEnv, controller: MultiGelloController):
+    def __init__(self, env: RobotEnv, controller: ComposedMultiController):
         self.last_traj_name = None
         self.env = env
         self.controller = controller
@@ -42,8 +38,10 @@ class DataCollector:
         self.failure_logdir = os.path.join(data_dir, "failure", str(date.today()))
         if not os.path.isdir(self.success_logdir):
             os.makedirs(self.success_logdir)
+            logger.info("Created directory for successful trajectories: {}".format(self.success_logdir))
         if not os.path.isdir(self.failure_logdir):
             os.makedirs(self.failure_logdir)
+            logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
 
     def collect_trajectory(self, info=None, practice=False, reset_robot=True, save_images=False):
         self.last_traj_name = time.asctime().replace(" ", "_")
@@ -51,30 +49,28 @@ class DataCollector:
         if info is None:
             info = {}
         info["time"] = self.last_traj_name
-        info["robot_serial_number"] = "{0}-{1}".format(robot_type, robot_serial_number)
-        info["version_number"] = droid_version
 
         if practice:
             save_filepath = None
-            recording_folderpath = None
+            recording_folder_path = None
         else:
             save_filepath = os.path.join(self.failure_logdir, info["time"], "trajectory.h5")
-            recording_folderpath = os.path.join(self.failure_logdir, info["time"], "recordings")
-            if not os.path.isdir(recording_folderpath):
-                os.makedirs(recording_folderpath)
+            recording_folder_path = os.path.join(self.failure_logdir, info["time"], "recordings")
+            if not os.path.isdir(recording_folder_path):
+                os.makedirs(recording_folder_path)
 
         # Collect Trajectory #
         self.traj_running = True
         if config["droid"]["robot"]["robot_mode"] == 'real':
             self.env.establish_connection()
-        controller_info = tu.collect_trajectory(
+        controller_info = collect_trajectory(
             self.env,
             controller=self.controller,
             horizon=self.horizon,
             metadata=info,
             obs_pointer=self.obs_pointer,
             reset_robot=reset_robot,
-            recording_folderpath=recording_folderpath,
+            recording_folder_path=recording_folder_path,
             save_filepath=save_filepath,
             save_images=save_images,
             wait_for_controller=True,

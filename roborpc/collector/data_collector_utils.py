@@ -1,4 +1,5 @@
 import base64
+import time
 from copy import deepcopy
 
 from PIL import Image
@@ -13,6 +14,7 @@ from droid.utils.data_utils.transformations import change_pose_frame
 from droid.utils.trajectory_utils.trajectory_reader import TrajectoryReader
 from droid.utils.trajectory_utils.trajectory_writer import TrajectoryWriter
 from roborpc.common.config_loader import config
+from roborpc.common.logger_loader import logger
 
 
 def collect_trajectory(
@@ -24,18 +26,10 @@ def collect_trajectory(
     wait_for_controller=False,
     obs_pointer=None,
     save_images=False,
-    recording_folderpath=False,
+    recording_folder_path=False,
     randomize_reset=False,
     reset_robot=True,
 ):
-    """
-    Collects a robot trajectory.
-    - If a horizon is given, we will step the environment accordingly
-    - Otherwise, we will end the trajectory when the controller tells us to
-    - If you need a pointer to the current observation, pass a dictionary in for obs_pointer
-    """
-
-    # Check Parameters #
     assert (controller is not None) or (horizon is not None)
     if wait_for_controller:
         assert controller is not None
@@ -44,23 +38,19 @@ def collect_trajectory(
     if save_images:
         assert save_filepath is not None
 
-    # Reset States #
     if controller is not None:
         controller.reset_state()
     env.camera_reader.set_trajectory_mode()
 
-    # Prepare Data Writers If Necesary #
     if save_filepath:
         traj_writer = TrajectoryWriter(save_filepath, metadata=metadata)
-    if recording_folderpath:
-        env.camera_reader.start_recording(recording_folderpath)
+    if recording_folder_path:
+        env.camera_reader.start_recording(recording_folder_path)
 
-    # Prepare For Trajectory #
     num_steps = 0
     if reset_robot:
         env.reset(randomize=randomize_reset)
 
-    # Start recording audio
     collect_config = config["droid"]["collector"]
     if config["droid"]["collector"]["save_audio"]:
         # print(sd.query_devices())
@@ -77,58 +67,50 @@ def collect_trajectory(
         audio_start = time.time()
 
     # Begin! #
-    print("press button to move arm!")
+    logger.info("press button to move arm!")
     while True:
-        # Collect Miscellaneous Info #
         controller_info = {} if (controller is None) else controller.get_info()
         skip_action = wait_for_controller and (not controller_info["movement_enabled"])
         control_timestamps = {"step_start": time_ms()}
 
-        # Get Observation #
         obs = env.get_observation()
         if obs_pointer is not None:
             obs_pointer.update(obs)
         obs["controller_info"] = controller_info
         obs["timestamp"]["skip_action"] = skip_action
 
-        # Get Action #
         control_timestamps["policy_start"] = time_ms()
         action, controller_action_info = controller.forward(obs, include_info=True)
 
-        # Regularize Control Frequency #
         control_timestamps["sleep_start"] = time_ms()
         comp_time = time_ms() - control_timestamps["step_start"]
         sleep_left = (1 / env.control_hz) - (comp_time / 1000)
         if sleep_left > 0:
             time.sleep(sleep_left)
 
-        # Step Environment #
         control_timestamps["control_start"] = time_ms()
         if skip_action:
-            print(f"skip action: {action}")
+            logger.info(f"skip action: {action}")
             action_info = env.create_action_dict(np.zeros_like(action), action_space=env.action_space)
         else:
-            print(f"action: {action}")
+            logger.info(f"action: {action}")
             action_info = env.step(action)
         action_info.update(controller_action_info)
 
-        # Save Data #
         control_timestamps["step_end"] = time_ms()
         obs["timestamp"]["control"] = control_timestamps
         timestep = {"observation": obs, "action": action_info}
         if save_filepath:
             traj_writer.write_timestep(timestep)
 
-        # Check Termination #
         num_steps += 1
         if horizon is not None:
             end_traj = horizon == num_steps
         else:
             end_traj = controller_info["success"] or controller_info["failure"]
 
-        # Close Files And Return #
         if end_traj:
-            if recording_folderpath:
+            if recording_folder_path:
                 env.camera_reader.stop_recording()
             if save_filepath:
                 traj_writer.close(metadata=controller_info)
@@ -171,11 +153,9 @@ def calibrate_camera(
     controller.reset_state()
 
     while True:
-        # Collect Controller Info #
         controller_info = controller.get_info()
         start_time = time.time()
 
-        # Get Observation #
         state, _ = env.get_state()
         cam_obs, _ = env.read_cameras()
 
@@ -186,11 +166,9 @@ def calibrate_camera(
         if obs_pointer is not None:
             obs_pointer.update(cam_obs)
 
-        # Get Action #
         action = controller.forward({"robot_state": state})
         action[-1] = 0  # Keep gripper open
 
-        # Regularize Control Frequency #
         comp_time = time.time() - start_time
         sleep_left = (1 / env.control_hz) - comp_time
         if sleep_left > 0:

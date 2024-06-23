@@ -1,5 +1,7 @@
 [roborpc.robot_env]
 
+######### Robot Environment Configuration #########
+# This section defines the environment configuration for the robots.
 [roborpc.robots]
 # ON or OFF
 robot_ids = [['realman_1']]
@@ -7,11 +9,6 @@ server_ips_address = ['192.168.1.100']
 sever_rpc_ports = ['4244']
 
 [roborpc.robots.realman]
-# ON or OFF
-robot_ids = [['realman_1']]
-server_ips_address = ['192.168.1.100']
-sever_rpc_ports = ['4244']
-
 [roborpc.robots.realman.realman_1]
 ip_address = '192.168.1.18'
 robot_arm_dof = 7
@@ -47,7 +44,7 @@ ip_address = '127.0.0.1'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
-[roborpc.robots.dynamixel.dynamixel_realman_left_arm]
+[roborpc.robots.dynamixel.dynamixel_controller_left_arm]
 start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [1, 2, 3, 4, 5, 6, 7]
 joint_signs = [1, -1, 1, 1, 1, -1, 1]
@@ -58,10 +55,28 @@ gripper_config = [8, 198, 156]
 button_A_port = "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"
 button_B_port = "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"
 
-[roborpc.controllers.gello_controller]
-controller_ids = ['dynamixel_realman_left_arm']
-rpc_port = ['4245']
+######### Camera Configuration #########
+# This section defines the camera configuration for the robots.
+[roborpc.cameras]
+# ON or OFF
+camera_ids = [['realsense_camera_1']]
+server_ips_address = ['192.168.1.100']
+server_rpc_ports = ['4245']
 
+[roborpc.cameras.realsense_camera.realsense_camera_1]
+camera_resolution = [1280, 720]
+camera_fps = 30
+
+######### Controller Configuration #########
+# This section defines the controller configuration for the robots.
+[roborpc.controllers]
+# ON or OFF
+controller_ids = [['dynamixel_controller_left_arm']]
+server_ips_address = ['127.0.0.1']
+sever_rpc_ports = ['4246']
+
+######### Data Collector Configuration #########
+# This section defines the data collector configuration for the robots.
 [roborpc.collector.data_collector]
 save_data_dir = "/home/eai/Log/droid/data/"
 action_space = "joint_position"
@@ -86,6 +101,8 @@ horizon = 0 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 
+######### Sim Robot Configuration #########
+# This section defines the simulation robot configuration for the robots.
 [roborpc.sim_robots]
 daemon_host=''
 daemon_port=6026

@@ -19,6 +19,13 @@ class ControllerBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_controller_id(self) -> List[str]:
+        """
+        Get the id of the controller
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         """
         Get information about the controller.

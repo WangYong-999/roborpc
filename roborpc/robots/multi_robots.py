@@ -30,7 +30,6 @@ class MultiRobots(RobotBase):
         self.get_ee_pose_flag = False
         self.loop = asyncio.get_event_loop()
         self.robot_ids = self.robot_config["robot_ids"][0]
-        self.connect_now()
 
     def connect_now(self):
         for robot_id in self.robot_ids:

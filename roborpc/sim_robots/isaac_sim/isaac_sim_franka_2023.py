@@ -1,33 +1,29 @@
-import threading
-
 from omni.isaac.kit import SimulationApp
-
 CONFIG = {"width": 1280, "height": 720, "sync_loads": False,
           "headless": False, "renderer": "RayTracedLighting"}
 simulation_app = SimulationApp(CONFIG)
-from omni.isaac.core.utils.types import ArticulationAction
-from omni.isaac.core.objects import DynamicCuboid
 import omni
-import numpy as np
-from omni.isaac.core.world import World
-from omni.isaac.core.utils.stage import add_reference_to_stage
-from omni.isaac.core.utils.stage import is_stage_loading
-import transforms3d as t3d
-from common.logger_loader import logger
-import traceback
-from omni.isaac.sensor import Camera
-import omni.isaac.core.utils.numpy.rotations as rot_utils
 from pxr import Gf, UsdGeom
+from omni.isaac.sensor import Camera
+from omni.isaac.core.prims import XFormPrim
+from omni.isaac.core.world import World
+from omni.isaac.core.objects import DynamicCuboid
+from omni.isaac.core.utils.stage import is_stage_loading
+from omni.isaac.core.utils.types import ArticulationAction
+from omni.isaac.core.utils.stage import add_reference_to_stage
+import omni.isaac.core.utils.numpy.rotations as rot_utils
+
+import cv2
+import traceback
+import threading
+import numpy as np
+import transforms3d as t3d
+import base64
+from typing import Optional, Dict, List
 
 from common.config_loader import config_loader
 from common.logger_loader import logger
-from omni.isaac.core.prims import XFormPrim
-from typing import Optional, Dict, List
-import base64
-
-import cv2
-from robots.sim_robot_interface import SimRobotInterface
-from omni.isaac.core.utils.stage import is_stage_loading
+from roborpc.sim_robots.sim_robot_interface import SimRobotInterface
 
 try:
     while is_stage_loading():

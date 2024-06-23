@@ -19,6 +19,7 @@ class MutilRobotsRpc(RobotBase):
     def connect_now(self):
         self.robots = zerorpc.Client(heartbeat=20)
         self.robots.connect("tcp://" + self.server_ip_address + ":" + self.rpc_port)
+        self.robots.connect_now()
 
     def disconnect_now(self):
         self.robots.disconnect_now()
@@ -155,34 +156,61 @@ class ComposedMultiRobots(RobotBase):
 
     def get_dofs(self) -> Dict[str, int]:
         dofs = {}
-        for robot_id, multi_robots in self.robots.items():
-            dofs = multi_robots.get_dofs()
-            dofs[robot_id] = dofs
-        return dofs
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            dofs[server_ip_address] = multi_robots.get_dofs()
+        new_dofs = {}
+        for server_ip_address, robot_dofs in dofs.items():
+            for robot_id, dof in robot_dofs.items():
+                new_dofs[robot_id] = dof
+        return new_dofs
 
     def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
         joint_positions = {}
-        for robot_id, multi_robots in self.robots.items():
-            joint_positions[robot_id] = multi_robots.get_joint_positions()
-        return joint_positions
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            joint_positions[server_ip_address] = asyncio.ensure_future(multi_robots.get_joint_positions())
+        self.loop.run_until_complete(asyncio.gather(*joint_positions.values()))
+        new_joint_positions = {}
+        for server_ip_address, joint_position in joint_positions.items():
+            joint_positions[server_ip_address] = joint_position.result()
+            for robot_id, position in joint_positions[server_ip_address].items():
+                new_joint_positions[robot_id] = position
+        return new_joint_positions
 
     def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         gripper_positions = {}
-        for robot_id, multi_robots in self.robots.items():
-            gripper_positions[robot_id] = multi_robots.get_gripper_position()
-        return gripper_positions
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            gripper_positions[server_ip_address] = asyncio.ensure_future(multi_robots.get_gripper_position())
+        self.loop.run_until_complete(asyncio.gather(*gripper_positions.values()))
+        new_gripper_positions = {}
+        for server_ip_address, gripper_position in gripper_positions.items():
+            gripper_positions[server_ip_address] = gripper_position.result()
+            for robot_id, position in gripper_positions[server_ip_address].items():
+                new_gripper_positions[robot_id] = position
+        return new_gripper_positions
 
     def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         joint_velocities = {}
-        for robot_id, multi_robots in self.robots.items():
-            joint_velocities[robot_id] = multi_robots.get_joint_velocities()
-        return joint_velocities
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            joint_velocities[server_ip_address] = asyncio.ensure_future(multi_robots.get_joint_velocities())
+        self.loop.run_until_complete(asyncio.gather(*joint_velocities.values()))
+        new_joint_velocities = {}
+        for server_ip_address, joint_velocity in joint_velocities.items():
+            joint_velocities[server_ip_address] = joint_velocity.result()
+            for robot_id, velocity in joint_velocities[server_ip_address].items():
+                new_joint_velocities[robot_id] = velocity
+        return new_joint_velocities
 
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         ee_poses = {}
-        for robot_id, multi_robots in self.robots.items():
-            ee_poses[robot_id] = multi_robots.get_ee_pose()
-        return ee_poses
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            ee_poses[server_ip_address] = asyncio.ensure_future(multi_robots.get_ee_pose())
+        self.loop.run_until_complete(asyncio.gather(*ee_poses.values()))
+        new_ee_poses = {}
+        for server_ip_address, ee_pose in ee_poses.items():
+            ee_poses[server_ip_address] = ee_pose.result()
+            for robot_id, pose in ee_poses[server_ip_address].items():
+                new_ee_poses[robot_id] = pose
+        return new_ee_poses
 
 
 if __name__ == '__main__':
