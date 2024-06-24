@@ -3,7 +3,7 @@ from typing import Union, List, Dict, Sequence, Optional, Tuple
 import numpy as np
 
 from roborpc.robots.robot_base import RobotBase
-from thirty_party.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol, FakeDynamixelDriver
+from thirty_party.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol
 
 
 class Dynamixel(RobotBase):
@@ -14,6 +14,7 @@ class Dynamixel(RobotBase):
                  port: str = "/dev/ttyUSB0",
                  gripper_config: Optional[Tuple[int, float, float]] = None,
                  start_joints: Optional[np.ndarray] = None,
+                 baudrate: int = 1000000,
                  ):
         super().__init__()
 
@@ -29,6 +30,7 @@ class Dynamixel(RobotBase):
         self._driver: Optional[DynamixelDriverProtocol] = None
         self.gripper_open_close: Optional[Tuple[float, float]]
         self.gripper_config = gripper_config
+        self.baudrate = baudrate
 
         if gripper_config is not None:
             assert joint_offsets is not None
@@ -50,8 +52,10 @@ class Dynamixel(RobotBase):
 
         if self.joint_signs is None:
             self._joint_signs = np.ones(len(self.joint_ids))
+            self._joint_ids = self.joint_ids
         else:
             self._joint_signs = np.array(self.joint_signs)
+            self._joint_ids = self.joint_ids
 
         assert len(self._joint_ids) == len(self._joint_offsets), (
             f"joint_ids: {len(self._joint_ids)}, "
@@ -65,8 +69,8 @@ class Dynamixel(RobotBase):
             np.abs(self._joint_signs) == 1
         ), f"joint_signs: {self._joint_signs}"
 
-    def connect_now(self):
-        self._driver = DynamixelDriver(self._joint_ids, port=self.port, baudrate=57600)
+    def connect_now(self) -> Union[bool, Dict[str, bool]]:
+        self._driver = DynamixelDriver(self._joint_ids, port=self.port, baudrate=self.baudrate)
         self._driver.set_torque_mode(False)
 
         if self.start_joints is not None:
@@ -89,9 +93,10 @@ class Dynamixel(RobotBase):
             if self.gripper_config is not None:
                 new_joint_offsets.append(self._joint_offsets[-1])
             self._joint_offsets = np.array(new_joint_offsets)
+        return True
 
-    def disconnect_now(self):
-        pass
+    def disconnect_now(self) -> Union[bool, Dict[str, bool]]:
+        return True
 
     def get_robot_ids(self) -> List[str]:
         pass

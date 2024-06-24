@@ -47,14 +47,13 @@ robot_gripper_dof = 1
 
 [roborpc.robots.dynamixel.dynamixel_controller_left_arm]
 start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
-joint_ids = [1, 2, 3, 4, 5, 6, 7]
+joint_ids = [0, 1, 2, 3, 4, 5, 6]
 joint_signs = [1, -1, 1, 1, 1, -1, 1]
 gripper = true
-gello_port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053194-if00"
+port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
 joint_offsets =  [4.71238898038469, 6.283185307179586, 3.141592653589793, 4.71238898038469, 4.71238898038469, 4.71238898038469, 6.283185307179586]
-gripper_config = [8, 198, 156]
-button_A_port = "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"
-button_B_port = "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"
+gripper_config = [7, 198, 156]
+baudrate = 1000000
 
 ######### Camera Configuration #########
 # This section defines the camera configuration for the robots.

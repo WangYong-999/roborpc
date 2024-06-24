@@ -5,14 +5,14 @@ from typing import Dict, List, Union
 class ControllerBase(ABC):
 
     @abstractmethod
-    def connect_now(self):
+    def connect_now(self) -> Union[bool, Dict[str, bool]]:
         """
         Connect to the controller.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def disconnect_now(self):
+    def disconnect_now(self) -> Union[bool, Dict[str, bool]]:
         """
         Disconnect from the controller.
         """
@@ -33,7 +33,7 @@ class ControllerBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]):
+    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
         """
         Move the robot forward.
         """

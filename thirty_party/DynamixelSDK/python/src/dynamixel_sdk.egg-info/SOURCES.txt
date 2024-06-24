@@ -1,3 +1,4 @@
+CATKIN_IGNORE
 LICENSE.txt
 README.txt
 setup.py
@@ -16,3 +17,20 @@ src/dynamixel_sdk.egg-info/SOURCES.txt
 src/dynamixel_sdk.egg-info/dependency_links.txt
 src/dynamixel_sdk.egg-info/requires.txt
 src/dynamixel_sdk.egg-info/top_level.txt
+tests/protocol_combined.py
+tests/protocol1_0/bulk_read.py
+tests/protocol1_0/factory_reset.py
+tests/protocol1_0/multi_port.py
+tests/protocol1_0/ping.py
+tests/protocol1_0/read_write.py
+tests/protocol1_0/sync_write.py
+tests/protocol2_0/broadcast_ping.py
+tests/protocol2_0/bulk_read_write.py
+tests/protocol2_0/clear_multi_turn.py
+tests/protocol2_0/factory_reset.py
+tests/protocol2_0/indirect_address.py
+tests/protocol2_0/multi_port.py
+tests/protocol2_0/ping.py
+tests/protocol2_0/read_write.py
+tests/protocol2_0/reboot.py
+tests/protocol2_0/sync_read_write.py

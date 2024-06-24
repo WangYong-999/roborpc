@@ -28,20 +28,21 @@ class DynamixelController(ControllerBase):
         self.key_button = False
         self.button_A_pressed = False
         self.button_B_pressed = False
-        threading.Thread(target=self.run_key_listen).start()
-        threading.Thread(target=self._update_internal_state).start()
-        time.sleep(1)
 
-    def connect_now(self):
-        self.robot.connect_now()
+    def connect_now(self) -> Union[bool, Dict[str, bool]]:
+        result = self.robot.connect_now()
         self.controller_id = self.robot.robot_id
         self.reset_state()
 
         assert np.allclose(np.array(self.robot.get_robot_state()["robot_positions"]),
                            self.robot.start_joints, rtol=2, atol=2)
+        threading.Thread(target=self.run_key_listen).start()
+        threading.Thread(target=self._update_internal_state).start()
+        time.sleep(1)
+        return result
 
-    def disconnect_now(self):
-        pass
+    def disconnect_now(self) -> Union[bool, Dict[str, bool]]:
+        return True
 
     def get_controller_id(self) -> List[str]:
         return [self.controller_id]
@@ -188,7 +189,7 @@ class DynamixelController(ControllerBase):
             "controller_on": self.state["controller_on"],
         }
 
-    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]):
+    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
         if not self.goto_start_pos:
             self.go_start_joints(obs_dict["robot_state"])
-        return self.calculate_action()
+        return self.calculate_action().tolist()
