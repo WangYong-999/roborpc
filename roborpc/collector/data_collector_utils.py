@@ -44,7 +44,7 @@ def collect_trajectory(
         obs["timestamp"]["skip_action"] = skip_action
 
         control_timestamps["policy_start"] = time.time_ns() / 1_000_000
-        action, controller_action_info = controller.forward(obs)
+        action = controller.forward(obs)
 
         control_timestamps["sleep_start"] = time.time_ns() / 1_000_000
         comp_time = time.time_ns() / 1_000_000 - control_timestamps["step_start"]
@@ -59,7 +59,6 @@ def collect_trajectory(
         else:
             logger.info(f"action: {action}")
             action_info = env.step(action)
-        action_info.update(controller_action_info)
 
         control_timestamps["step_end"] = time.time_ns() / 1_000_000
         obs["timestamp"]["control"] = control_timestamps

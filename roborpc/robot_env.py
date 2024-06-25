@@ -8,6 +8,7 @@ from roborpc.common.config_loader import config
 from roborpc.robots.composed_multi_robots import ComposedMultiRobots
 from roborpc.cameras.composed_multi_cameras import ComposedMultiCameras
 from roborpc.controllers.composed_multi_controllers import ComposedMultiController
+from roborpc.kinematics_solver.curobo_solver_kinematic import CuroboSolverKinematic
 
 
 class RobotEnv(gym.Env):
@@ -29,6 +30,7 @@ class RobotEnv(gym.Env):
         self.cameras.connect_now()
         self.controllers.connect_now()
 
+        self.kinematic_solver = CuroboSolverKinematic()
         self.env_update_rate = config['roborpc']['robot_env']['env_update_rate']
         self.robot_ids = self.robots.get_robot_ids()
         self.camera_ids = self.cameras.get_device_ids()
@@ -38,22 +40,26 @@ class RobotEnv(gym.Env):
         self.cameras.disconnect_now()
         self.controllers.disconnect_now()
 
-    def step(self, action: Union[List[float], Dict[str, List[float]]],
-             action_space: Union[str, Dict[str, str]] = "cartesian_position_gripper_position",
-             blocking: Union[bool, Dict[str, bool]] = False):
+    def step(self, action: Union[Dict[str, Dict[str, List[float]]]],
+             blocking: Union[bool, Dict[str, bool]] = False) -> Dict[str, List[float]]:
+
         arm_action_space = {}
         gripper_action_space = {}
-        for action_id, action_name in action_space.items():
-            if action_name == "cartesian_position_gripper_position":
-                arm_action_space[action_id] = "cartesian_position"
-                gripper_action_space[action_id] = "gripper_position"
-            elif action_name == "joint_position_gripper_position":
-                arm_action_space[action_id] = "joint_position"
-                gripper_action_space[action_id] = "gripper_position"
-            else:
-                raise ValueError("Invalid action space")
-        self.robots.set_ee_pose(action, action_space, blocking)
+        action_info = {}
+
+        for action_id, action_and_action_space in action.items():
+            for action_name, action_value in action_and_action_space.items():
+                if action_name == "cartesian_position_gripper_position":
+                    arm_action_space[action_id] = "cartesian_position"
+                    gripper_action_space[action_id] = "gripper_position"
+                elif action_name == "joint_position_gripper_position":
+                    arm_action_space[action_id] = "joint_position"
+                    gripper_action_space[action_id] = "gripper_position"
+                else:
+                    raise ValueError("Invalid action space")
+        self.robots.set_ee_pose(action, arm_action_space, blocking)
         self.robots.set_gripper(action, gripper_action_space, blocking)
+
 
     def reset(self, random_reset: bool = False):
         pass
