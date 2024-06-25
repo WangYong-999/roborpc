@@ -189,7 +189,7 @@ class DynamixelController(ControllerBase):
             "controller_on": self.state["controller_on"],
         }
 
-    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
+    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
         if not self.goto_start_pos:
-            self.go_start_joints(obs_dict["robot_state"])
+            self.go_start_joints(obs_dict)
         return self.calculate_action().tolist()

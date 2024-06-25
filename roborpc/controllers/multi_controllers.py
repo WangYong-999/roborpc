@@ -65,7 +65,7 @@ class MultiControllers(ControllerBase):
             info_dict[controller_id] = self.controllers[controller_id].get_info()
         return info_dict
 
-    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
+    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
         result_dict = {}
         for controller_id in self.controller_ids:
             result_dict[controller_id] = self.controllers[controller_id].forward(obs_dict[controller_id])

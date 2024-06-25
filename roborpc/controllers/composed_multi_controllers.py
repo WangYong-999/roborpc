@@ -33,7 +33,7 @@ class MultiControllersRpc(ControllerBase):
     async def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         return self.controllers.get_info()
 
-    async def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
+    async def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
         return self.controllers.forward(obs_dict)
 
 
@@ -76,6 +76,13 @@ class ComposedMultiController(ControllerBase):
                     controller_ids_server_ips[controller_id] = server_ip_address
         return controller_ids_server_ips
 
+    def controller_ids_to_server_ips(self, controller_ids: Dict) -> Dict:
+        server_ips = {}
+        for controller_id in controller_ids:
+            if controller_id in self.controller_ids_server_ips:
+                server_ips[controller_id] = self.controller_ids_server_ips[controller_id]
+        return server_ips
+
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         info_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
@@ -94,10 +101,14 @@ class ComposedMultiController(ControllerBase):
             controller_ids.extend(multi_controllers.get_controller_id())
         return controller_ids
 
-    def forward(self, obs_dict: Union[List[float], Dict[str, List[float]]]) -> Union[List[float], Dict[str, List[float]]]:
+    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
         result_dict = {}
+        new_obs_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
-            result_dict[server_ip_address] = asyncio.ensure_future(multi_controllers.forward(obs_dict))
+            for controller_id, controller_obs in obs_dict.items():
+                if controller_id in self.controller_ids_server_ips and self.controller_ids_server_ips[controller_id] == server_ip_address:
+                    new_obs_dict[controller_id] = controller_obs
+            result_dict[server_ip_address] = asyncio.ensure_future(multi_controllers.forward(new_obs_dict))
         self.loop.run_until_complete(asyncio.gather(*result_dict.values()))
         new_result_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
