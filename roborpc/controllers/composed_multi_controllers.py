@@ -44,7 +44,6 @@ class ComposedMultiController(ControllerBase):
         super().__init__()
         self.composed_multi_controllers = {}
         self.controller_config = config['roborpc']['controllers']
-        self.controller_ids_server_ips = {}
         self.loop = asyncio.get_event_loop()
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
@@ -55,10 +54,6 @@ class ComposedMultiController(ControllerBase):
             self.composed_multi_controllers[server_ip_address] = MultiControllersRpc(server_ip_address, rpc_port)
             result.update(self.composed_multi_controllers[server_ip_address].connect_now())
             logger.info("Connected to server: " + server_ip_address + ":" + rpc_port)
-            print(result)
-        print(self.composed_multi_controllers)
-        self.controller_ids_server_ips = self.get_controller_ids_server_ips()
-        print(self.controller_ids_server_ips)
         return result
 
     def disconnect_now(self) -> Union[bool, Dict[str, bool]]:
@@ -67,21 +62,6 @@ class ComposedMultiController(ControllerBase):
             result.update(multi_controllers.disconnect_now())
             logger.info("Disconnected from server: " + server_ip_address)
         return result
-
-    def get_controller_ids_server_ips(self) -> Dict[str, str]:
-        controller_ids_server_ips = {}
-        for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
-            for controller_ids in multi_controllers.get_controller_id():
-                for controller_id in controller_ids:
-                    controller_ids_server_ips[controller_id] = server_ip_address
-        return controller_ids_server_ips
-
-    def controller_ids_to_server_ips(self, controller_ids: Dict) -> Dict:
-        server_ips = {}
-        for controller_id in controller_ids:
-            if controller_id in self.controller_ids_server_ips:
-                server_ips[controller_id] = self.controller_ids_server_ips[controller_id]
-        return server_ips
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         info_dict = {}
@@ -103,12 +83,11 @@ class ComposedMultiController(ControllerBase):
 
     def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
         result_dict = {}
-        new_obs_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
-            for controller_id, controller_obs in obs_dict.items():
-                if controller_id in self.controller_ids_server_ips and self.controller_ids_server_ips[controller_id] == server_ip_address:
-                    new_obs_dict[controller_id] = controller_obs
-            result_dict[server_ip_address] = asyncio.ensure_future(multi_controllers.forward(new_obs_dict))
+            new_obs_dict = {}
+            for controller_id in multi_controllers.get_controller_id():
+                new_obs_dict.update({controller_id: obs_dict[controller_id]})
+            result_dict[server_ip_address] = asyncio.ensure_future(multi_controllers.forward(new_obs_dict[server_ip_address]))
         self.loop.run_until_complete(asyncio.gather(*result_dict.values()))
         new_result_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():

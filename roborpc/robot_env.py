@@ -60,8 +60,8 @@ class RobotEnv(gym.Env):
 
     def get_observation(self):
         observation = {}
-        observation['robots'] = self.robots.get_robot_state()
-        observation['cameras'] = self.cameras.read_camera()
+        observation.update(self.robots.get_robot_state())
+        observation.update(self.cameras.read_camera())
         return observation
 
     def collect_data(self):

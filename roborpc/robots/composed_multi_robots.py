@@ -64,7 +64,6 @@ class MutilRobotsRpc(RobotBase):
 
 class ComposedMultiRobots(RobotBase):
     def __init__(self):
-        self.robot_ids_server_ips = {}
         self.robot_config = config["roborpc"]["robots"]
         self.composed_multi_robots = {}
         self.loop = asyncio.get_event_loop()
@@ -76,20 +75,11 @@ class ComposedMultiRobots(RobotBase):
             self.composed_multi_robots[server_ip_address] = MutilRobotsRpc(server_ip_address, sever_rpc_port)
             self.composed_multi_robots[server_ip_address].connect_now()
             logger.info(f"Multi Robot {server_ip_address}:{sever_rpc_port} Connect Success!")
-        self.robot_ids_server_ips = self.get_robot_ids_server_ips()
 
     def disconnect_now(self):
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
             multi_robots.disconnect_now()
             logger.info(f"Multi Robot {server_ip_address} Disconnect Success!")
-
-    def get_robot_ids_server_ips(self) -> Dict[str, str]:
-        robot_ids_server_ips = {}
-        for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            for robot_ids in multi_robots.get_robot_ids():
-                for robot_id in robot_ids:
-                    robot_ids_server_ips[robot_id] = server_ip_address
-        return robot_ids_server_ips
 
     def get_robot_ids(self) -> List[str]:
         robot_ids = []
