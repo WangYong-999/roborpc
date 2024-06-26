@@ -1,0 +1,99 @@
+robot_cfg:
+  kinematics:
+    use_usd_kinematics: False
+    isaac_usd_path: ""
+    usd_path: ""
+    usd_robot_root: ""
+    urdf_path: "rm_75_6f_description.urdf"
+    base_link: "base_link"
+    ee_link: "ee_link"
+    link_names: ["ee_link"]
+    robot_names_link_names_pair:
+      - "ee_link": "realman_1"
+    robot_dof_link_names_pair:
+      - "ee_link": 7
+    collision_link_names:
+      [
+        "base_link",
+        "Link1",
+        "Link2",
+        "Link3",
+        "Link4",
+        "Link5",
+        "Link6",
+        "Link7",
+      ]
+    collision_spheres:
+      base_link:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link1:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link2:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link3:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link4:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link5:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link6:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+      Link7:
+        - "center": [ 0.0, 0.0, 0.0 ]
+          "radius": 0.0
+    collision_sphere_buffer: 0.0025
+#    extra_collision_spheres: {"attached_object": 4}
+    use_global_cumul: True
+    self_collision_ignore:
+      {
+        base_link: [Link1],
+        Link1: [Link2],
+        Link2: [Link3],
+        Link3: [Link4],
+        Link4: [Link5],
+        link5: [Link6],
+        Link6: [Link7],
+        Link7: []
+      }
+
+    self_collision_buffer:
+      {
+        "base_link": 0.0,
+        "Link1": 0.0,
+        "Link2": 0.0,
+        "Link3": 0.0,
+        "Link4": 0.0,
+        "Link5": 0.0,
+        "Link6": 0.0,
+        "Link7": 0.0
+      }
+    mesh_link_names:
+      [
+        "base_link",
+        "Link1",
+        "Link2",
+        "Link3",
+        "Link4",
+        "Link5",
+        "Link6",
+        "Link7",
+      ]
+#    lock_joints: {"panda_finger_joint1": 0.04, "panda_finger_joint2": 0.04}
+#    extra_links: {"attached_object":{"parent_link_name": "panda_hand" ,
+#    "link_name": "attached_object", "fixed_transform": [0,0,0,1,0,0,0], "joint_type":"FIXED",
+#    "joint_name": "attach_joint" }}
+    cspace:
+      joint_names: ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
+      retract_config: [ 0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
+                               0.01965240737745615, -0.2019695010407838, 0.3374869513188684]
+      null_space_weight: [1,1,1,1,1,1,1]
+      cspace_distance_weight: [1,1,1,1,1,1,1]
+      max_acceleration: 15.0
+      max_jerk: 500.0

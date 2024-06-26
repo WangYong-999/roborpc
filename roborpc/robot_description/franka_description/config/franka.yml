@@ -1,0 +1,224 @@
+robot_cfg:
+  kinematics:
+    use_usd_kinematics: False
+    isaac_usd_path: ""
+    usd_path: ""
+    usd_robot_root: ""
+    urdf_path: "franka_panda.urdf"
+    base_link: "base_link"
+    ee_link: "ee_link"
+    link_names: ["ee_link"]
+    robot_names_link_names_pair:
+      - "ee_link": "panda_1"
+    collision_link_names:
+      [
+        "panda_link0",
+        "panda_link1",
+        "panda_link2",
+        "panda_link3",
+        "panda_link4",
+        "panda_link5",
+        "panda_link6",
+        "panda_link7",
+        "panda_hand",
+        "panda_leftfinger",
+        "panda_rightfinger",
+        "attached_object",
+      ]
+    collision_spheres:
+      panda_link0:
+        - "center": [ 0.0, 0.0, 0.085 ]
+          "radius": 0.03 #0.07
+        - "center": [ -0.1, -0.0, 0.085 ]
+          "radius": 0.03 #0.07
+      panda_link1:
+        - "center": [ 0.0, -0.08, 0.0 ]
+          "radius": 0.055
+        - "center": [ 0.0, -0.03, 0.0 ]
+          "radius": 0.06
+        - "center": [ 0.0, 0.0, -0.12 ]
+          "radius": 0.06
+        - "center": [ 0.0, 0.0, -0.17 ]
+          "radius": 0.06
+      panda_link2:
+        - "center": [ 0.0, 0.0, 0.03 ]
+          "radius": 0.055
+        - "center": [ 0.0, 0.0, 0.08 ]
+          "radius": 0.055
+        - "center": [ 0.0, -0.12, 0.0 ]
+          "radius": 0.055
+        - "center": [ 0.0, -0.17, 0.0 ]
+          "radius": 0.055
+      panda_link3:
+        - "center": [ 0.0, 0.0, -0.06 ]
+          "radius": 0.05
+        - "center": [ 0.0, 0.0, -0.1 ]
+          "radius": 0.06
+        - "center": [ 0.08, 0.06, 0.0 ]
+          "radius": 0.052
+        - "center": [ 0.08, 0.02, 0.0 ]
+          "radius": 0.052
+      panda_link4:
+        - "center": [ 0.0, 0.0, 0.02 ]
+          "radius": 0.052
+        - "center": [ 0.0, 0.0, 0.06 ]
+          "radius": 0.052
+        - "center": [ -0.08, 0.095, 0.0 ]
+          "radius": 0.055
+        - "center": [ -0.08, 0.06, 0.0 ]
+          "radius": 0.052
+      panda_link5:
+        - "center": [ 0.0, 0.03, 0.0 ]
+          "radius": 0.05
+        - "center": [ 0.0, 0.082, 0.0 ]
+          "radius": 0.05
+        - "center": [ 0.0, 0.000, -0.22 ]
+          "radius": 0.05
+        - "center": [ 0.0, 0.052, -0.18 ]
+          "radius": 0.04
+        - "center": [ 0.01, 0.08, -0.14 ]
+          "radius": 0.022
+        - "center": [ 0.01, 0.085, -0.11 ]
+          "radius": 0.022
+        - "center": [ 0.01, 0.09, -0.08 ]
+          "radius": 0.022
+        - "center": [ 0.01, 0.095, -0.05 ]
+          "radius": 0.022
+        - "center": [ -0.01, 0.08, -0.14 ]
+          "radius": 0.022
+        - "center": [ -0.01, 0.085, -0.11 ]
+          "radius": 0.022
+        - "center": [ -0.01, 0.09, -0.08 ]
+          "radius": 0.022
+        - "center": [ -0.01, 0.095, -0.05 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.009, 0.0 ]
+          "radius": 0.05
+      panda_link6:
+        - "center": [ 0.085, 0.035, 0.0 ]
+          "radius": 0.045
+        - "center": [ 0.085, 0.0, 0.0 ]
+          "radius": 0.045
+        - "center": [ 0.085, -0.015, 0.0 ]
+          "radius": 0.045
+      panda_link7:
+        - "center": [ 0.0, 0.0, 0.07 ]
+          "radius": 0.045
+        - "center": [ 0.02, 0.04, 0.08 ]
+          "radius": 0.024
+        - "center": [ 0.04, 0.02, 0.08 ]
+          "radius": 0.024
+        - "center": [ 0.04, 0.06, 0.085 ]
+          "radius": 0.02
+        - "center": [ 0.06, 0.04, 0.085 ]
+          "radius": 0.02
+      panda_hand:
+        - "center": [ 0.0, -0.075, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, -0.045, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, -0.015, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, 0.015, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, 0.045, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, 0.075, 0.01 ]
+          "radius": 0.023
+        - "center": [ 0.0, -0.08, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.045, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.015, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.015, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.045, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.08, 0.03 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.08, 0.045 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.045, 0.045 ]
+          "radius": 0.022
+        - "center": [ 0.0, -0.015, 0.045 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.015, 0.045 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.045, 0.045 ]
+          "radius": 0.022
+        - "center": [ 0.0, 0.08, 0.045 ]
+          "radius": 0.022
+      panda_leftfinger:
+        - "center": [ 0.0, 0.01, 0.043 ]
+          "radius": 0.011 # 25
+        - "center": [ 0.0, 0.02, 0.015 ]
+          "radius": 0.011 # 25
+      panda_rightfinger:
+        - "center": [ 0.0, -0.01, 0.043 ]
+          "radius": 0.011 #25
+        - "center": [ 0.0, -0.02, 0.015 ]
+          "radius": 0.011 #25
+    collision_sphere_buffer: 0.0025
+    extra_collision_spheres: {"attached_object": 4}
+    use_global_cumul: True
+    self_collision_ignore:
+      {
+        "panda_link0": ["panda_link1", "panda_link2"],
+        "panda_link1": ["panda_link2", "panda_link3", "panda_link4"],
+        "panda_link2": ["panda_link3", "panda_link4"],
+        "panda_link3": ["panda_link4", "panda_link6"],
+        "panda_link4":
+          ["panda_link5", "panda_link6", "panda_link7", "panda_link8"],
+        "panda_link5": ["panda_link6", "panda_link7", "panda_hand","panda_leftfinger", "panda_rightfinger"],
+        "panda_link6": ["panda_link7", "panda_hand", "attached_object", "panda_leftfinger", "panda_rightfinger"],
+        "panda_link7": ["panda_hand", "attached_object", "panda_leftfinger", "panda_rightfinger"],
+        "panda_hand": ["panda_leftfinger", "panda_rightfinger","attached_object"],
+        "panda_leftfinger": ["panda_rightfinger", "attached_object"],
+        "panda_rightfinger": ["attached_object"],
+
+      }
+
+    self_collision_buffer:
+      {
+        "panda_link0": 0.1,
+        "panda_link1": 0.05,
+        "panda_link2": 0.0,
+        "panda_link3": 0.0,
+        "panda_link4": 0.0,
+        "panda_link5": 0.0,
+        "panda_link6": 0.0,
+        "panda_link7": 0.0,
+        "panda_hand": 0.02,
+        "panda_leftfinger": 0.01,
+        "panda_rightfinger": 0.01,
+        "attached_object": 0.0,
+      }
+    #link_names: ["panda_link4"]
+    mesh_link_names:
+      [
+        "panda_link0",
+        "panda_link1",
+        "panda_link2",
+        "panda_link3",
+        "panda_link4",
+        "panda_link5",
+        "panda_link6",
+        "panda_link7",
+        "panda_hand",
+        "panda_leftfinger",
+        "panda_rightfinger",
+      ]
+    lock_joints: {"panda_finger_joint1": 0.04, "panda_finger_joint2": 0.04}
+    extra_links: {"attached_object":{"parent_link_name": "panda_hand" ,
+    "link_name": "attached_object", "fixed_transform": [0,0,0,1,0,0,0], "joint_type":"FIXED",
+    "joint_name": "attach_joint" }}
+    cspace:
+      joint_names: ["panda_joint1","panda_joint2","panda_joint3","panda_joint4", "panda_joint5",
+      "panda_joint6","panda_joint7","panda_finger_joint1", "panda_finger_joint2"]
+      retract_config: [ -0.001229998898153242, -0.78373070703473, 0.00033452204524119444, -2.3621342130897784,
+                        -0.002939444554553038, 1.5585773693838316, 0.7862526640851296, 0.04,0.04 ]
+      null_space_weight: [1,1,1,1,1,1,1,1,1]
+      cspace_distance_weight: [1,1,1,1,1,1,1,1,1]
+      max_acceleration: 15.0
+      max_jerk: 500.0

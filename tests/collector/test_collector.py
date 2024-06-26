@@ -16,11 +16,6 @@ if __name__ == '__main__':
 
         while True:
             try:
-                print(controller.forward({"dynamixel_controller_left_arm":
-                    {
-                        "joint_positions": [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0],
-                        "gripper_position": [0.0],
-                    }}))
                 collector.collect_trajectory()
             except KeyboardInterrupt:
                 pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)

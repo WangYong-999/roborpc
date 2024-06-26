@@ -28,6 +28,10 @@ class MutilRobotsRpc(RobotBase):
     def get_robot_ids(self) -> List[str]:
         return self.robots.get_robot_ids()
 
+    async def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                              blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        self.robots.set_robot_state(state, blocking)
+
     async def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                           action_space: Union[str, Dict[str, str]] = "cartesian_position",
                           blocking: Union[bool, Dict[str, bool]] = False):
@@ -86,6 +90,18 @@ class ComposedMultiRobots(RobotBase):
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
             robot_ids.extend(multi_robots.get_robot_ids())
         return robot_ids
+
+    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                        blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        multi_robots_task = []
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            new_state = {}
+            new_blocking = {}
+            for robot_id in multi_robots.get_robot_ids():
+                new_state.update({robot_id: state[robot_id]})
+                new_blocking.update({robot_id: blocking[robot_id]})
+            multi_robots_task.append(multi_robots.set_robot_state(new_state, new_blocking))
+        self.loop.run_until_complete(asyncio.gather(*multi_robots_task))
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "cartesian_position",
@@ -205,13 +221,15 @@ class ComposedMultiRobots(RobotBase):
 
 if __name__ == '__main__':
     import zerorpc
+
     multi_realman = ComposedMultiRobots()
     multi_realman.connect_now()
     print(multi_realman.get_robot_ids())
     print(multi_realman.get_robot_state())
 
-    multi_realman.set_joints({"realman_1": [0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
-                              0.01965240737745615, -0.2019695010407838, 0.364869513188684]},
-                             action_space={"realman_1": "joint_position"}, blocking={"realman_1": True})
+    multi_realman.set_joints(
+        {"realman_1": [0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
+                       0.01965240737745615, -0.2019695010407838, 0.364869513188684]},
+        action_space={"realman_1": "joint_position"}, blocking={"realman_1": True})
 
     multi_realman.disconnect_now()

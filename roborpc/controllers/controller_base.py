@@ -33,7 +33,7 @@ class ControllerBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
+    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         """
         Move the robot forward.
         """

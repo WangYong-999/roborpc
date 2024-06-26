@@ -33,7 +33,7 @@ class MultiControllersRpc(ControllerBase):
     async def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         return self.controllers.get_info()
 
-    async def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
+    async def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         return self.controllers.forward(obs_dict)
 
 
@@ -81,7 +81,7 @@ class ComposedMultiController(ControllerBase):
             controller_ids.extend(multi_controllers.get_controller_id())
         return controller_ids
 
-    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[List[float], Dict[str, List[float]]]:
+    def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         result_dict = {}
         for server_ip_address, multi_controllers in self.composed_multi_controllers.items():
             new_obs_dict = {}

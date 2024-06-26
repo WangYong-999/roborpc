@@ -1,4 +1,5 @@
 import subprocess
+from roborpc.robot_env import RobotEnv
 from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 
 if __name__ == '__main__':
@@ -7,17 +8,17 @@ if __name__ == '__main__':
                                shell=True)
         controller = ComposedMultiController()
         result = controller.connect_now()
+        robot_env = RobotEnv()
         print(result)
         for r in result.values():
             if not r:
                 raise Exception("Failed to connect to all controllers")
         while True:
             try:
-                print(controller.forward({"dynamixel_controller_left_arm":
-                    {
-                        "joint_positions": [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0],
-                        "gripper_position": [0.0],
-                    }}))
+                obs = robot_env.get_observation()
+                action = controller.forward(obs)
+                print(action)
+                # robot_env.step(action)
             except KeyboardInterrupt:
                 pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
                 subprocess.run(["kill", "-9", *(pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])

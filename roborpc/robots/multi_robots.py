@@ -52,13 +52,14 @@ class MultiRobots(RobotBase):
     def get_robot_ids(self) -> List[str]:
         return self.robot_ids
 
+    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                        blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        self.loop.run_until_complete(asyncio.gather(*[robot.set_robot_state(state[robot_id], blocking[robot_id])
+                                                      for robot_id, robot in self.robots.items()]))
+
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
-                    action_space=None,
-                    blocking=None):
-        if blocking is None:
-            blocking = {"realman_1": False}
-        if action_space is None:
-            action_space = {"realman_1": "cartesian_position"}
+                    action_space: Union[str, Dict[str, str]] = "cartesian_position",
+                    blocking: Union[bool, Dict[str, bool]] = False):
         self.loop.run_until_complete(asyncio.gather(*[robot.set_ee_pose(action[robot_id], action_space[robot_id],
                                                                         blocking[robot_id])
                                                       for robot_id, robot in self.robots.items()]))
@@ -132,22 +133,23 @@ class MultiRobots(RobotBase):
 
 if __name__ == '__main__':
     import zerorpc
-    # multi_realman = MultiRobots()
-    # multi_realman.connect_now()
-    # print(multi_realman.get_robot_ids())
-    # print(multi_realman.get_robot_state())
-    #
-    # multi_realman.set_joints({"realman_1": [0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
-    #                           0.01965240737745615, -0.2019695010407838, 0.3374869513188684]})
-    # multi_realman.set_gripper(
-    #     {"realman_1": [0.1]})
+    multi_realman = MultiRobots()
+    multi_realman.connect_now()
+    print(multi_realman.get_robot_ids())
+    print(multi_realman.get_robot_state())
 
-    multi_robots = MultiRobots()
-    s = zerorpc.Server(multi_robots)
-    rpc_port = multi_robots.robot_config['sever_rpc_ports'][0]
-    print(f"RPC Port: {rpc_port}")
-    logger.info(f"RPC Server Start on {rpc_port}")
-    s.bind(f"tcp://0.0.0.0:{rpc_port}")
-    s.run()
+    multi_realman.set_joints({"realman_1": [0.0, 0.0, -3.1415926/2, -3.1415926/2,
+                              0.0, 0.0, 0.0]},
+                             action_space={"realman_1": "joint_position"}, blocking={"realman_1": True})
+    # multi_realman.set_gripper(
+    #     {"realman_1": [0.1]}, action_space={"realman_1": "gripper_position"}, blocking={"realman_1": True})
+
+    # multi_robots = MultiRobots()
+    # s = zerorpc.Server(multi_robots)
+    # rpc_port = multi_robots.robot_config['sever_rpc_ports'][0]
+    # print(f"RPC Port: {rpc_port}")
+    # logger.info(f"RPC Server Start on {rpc_port}")
+    # s.bind(f"tcp://0.0.0.0:{rpc_port}")
+    # s.run()
 
 

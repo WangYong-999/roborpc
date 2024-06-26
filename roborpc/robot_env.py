@@ -40,26 +40,31 @@ class RobotEnv(gym.Env):
         self.cameras.disconnect_now()
         self.controllers.disconnect_now()
 
-    def step(self, action: Union[Dict[str, Dict[str, List[float]]]],
-             blocking: Union[bool, Dict[str, bool]] = False) -> Dict[str, List[float]]:
-
-        arm_action_space = {}
-        gripper_action_space = {}
+    def step(self, action: Dict[str, Dict[str, List[float]]],
+             blocking: Union[bool, Dict[str, List[bool]]] = False) -> Dict[str, Dict[str, List[float]]]:
         action_info = {}
-
-        for action_id, action_and_action_space in action.items():
-            for action_name, action_value in action_and_action_space.items():
-                if action_name == "cartesian_position_gripper_position":
-                    arm_action_space[action_id] = "cartesian_position"
-                    gripper_action_space[action_id] = "gripper_position"
-                elif action_name == "joint_position_gripper_position":
-                    arm_action_space[action_id] = "joint_position"
-                    gripper_action_space[action_id] = "gripper_position"
-                else:
-                    raise ValueError("Invalid action space")
-        self.robots.set_ee_pose(action, arm_action_space, blocking)
-        self.robots.set_gripper(action, gripper_action_space, blocking)
-
+        blocking_info = {}
+        for action_id, action_space_and_action in action.items():
+            for action_space_id, action_value in action_space_and_action.items():
+                if action_space_id == 'cartesian_position':
+                    if blocking is True:
+                        blocking_info[action_id] = {'cartesian_position': True}
+                    action_info[action_id] = {'cartesian_position': action_value}
+                    pose = {action_id: action_value}
+                    action_info[action_id] = {'joint_position': self.kinematic_solver.inverse_kinematics(pose)}
+                if action_space_id == 'joint_position':
+                    if blocking is True:
+                        blocking_info[action_id] = {'joint_position': True}
+                    action_info[action_id] = {'joint_position': action_value}
+                    joints_angle = {action_id: action_value}
+                    action_info[action_id] = {
+                        'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)}
+                if action_space_id == 'gripper_position':
+                    if blocking is True:
+                        blocking_info[action_id] = {'gripper_position': True}
+                    action_info[action_id] = {'gripper_position': action_value}
+        self.robots.set_robot_state(action, blocking_info)
+        return action_info
 
     def reset(self, random_reset: bool = False):
         pass

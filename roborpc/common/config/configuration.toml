@@ -157,3 +157,10 @@ vert_aperture = 1.44
 projection = 'perspective'
 focal_length = 1.25
 focus_distance = 400
+
+
+###### Kinematics Solver Configuration #########
+[roborpc.kinematics_solver.curobo_solver_kinematic]
+robot_cfg = 'rm75_6f.yml'
+world_cfg = 'collision_table.yml'
+robot_description = '/home/jz08/code_repo/roborpc/roborpc/robot_description/rm_description'

@@ -42,17 +42,34 @@ class RealMan(RobotBase):
     def get_robot_ids(self) -> List[str]:
         pass
 
-    async def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "cartesian_position", blocking: Union[bool, List[bool]] = False):
+    async def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                              blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        for action_space, action in state.items():
+            if action_space == "joint_position":
+                self.robot.move_joints_radian_trajectory(np.array([action]))
+            elif action_space == "gripper_position":
+                self.robot.set_gripper_opening(action[0])
+            elif action_space == "cartesian_position":
+                self.robot.move_cartesian_pose_trajectory(np.array([action]))
+
+    async def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
+                          action_space: Union[str, List[str]] = "cartesian_position",
+                          blocking: Union[bool, List[bool]] = False):
         self.robot.move_cartesian_pose_trajectory(np.array([action]))
 
-    async def set_joints(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "joint_position", blocking: Union[bool, List[bool]] = False):
+    async def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
+                         action_space: Union[str, List[str]] = "joint_position",
+                         blocking: Union[bool, List[bool]] = False):
         self.robot.move_joints_radian_trajectory(np.array([action]))
 
-    async def set_gripper(self, action: Union[List[float], Dict[str, List[float]]], action_space: Union[str, List[str]] = "gripper_position", blocking: Union[bool, List[bool]] = False):
+    async def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
+                          action_space: Union[str, List[str]] = "gripper_position",
+                          blocking: Union[bool, List[bool]] = False):
         self.robot.set_gripper_opening(action[0])
 
     async def get_robot_state(self) -> Dict[str, List[float]]:
-        robot_state = {"joint_position": await self.get_joint_positions(), "gripper_position": await self.get_gripper_position(),
+        robot_state = {"joint_position": await self.get_joint_positions(),
+                       "gripper_position": await self.get_gripper_position(),
                        "ee_pose": await self.get_ee_pose()}
         return robot_state
 
@@ -195,23 +212,3 @@ class MultiRealMan(RobotBase):
         for robot_id, pose in ee_poses.items():
             self.ee_poses[robot_id] = pose.result()
         return self.ee_poses
-
-
-if __name__ == '__main__':
-    import zerorpc
-    # multi_realman = MultiRealMan()
-    # multi_realman.connect_now()
-    # print(multi_realman.get_robot_ids())
-    # print(multi_realman.get_robot_state())
-    #
-    # multi_realman.set_joints({"realman_1": [0.10136872295583066, 0.059864793343405505, -0.14184290830957919, -1.8463838156848014,
-    #                           0.01965240737745615, -0.2019695010407838, 0.3374869513188684]})
-    # multi_realman.set_gripper(
-    #     {"realman_1": [0.1]})
-    multi_realman = MultiRealMan()
-    s = zerorpc.Server(multi_realman)
-    robot_id = multi_realman.robot_ids[0]
-    rpc_port = multi_realman.robot_config[robot_id]['rpc_port']
-    logger.info(f"RPC Server Start on {rpc_port}")
-    s.bind(f"tcp://0.0.0.0:{rpc_port}")
-    s.run()

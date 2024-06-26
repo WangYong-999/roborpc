@@ -101,6 +101,10 @@ class Dynamixel(RobotBase):
     def get_robot_ids(self) -> List[str]:
         pass
 
+    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                        blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        pass
+
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, List[str]] = "cartesian_position",
                     blocking: Union[bool, List[bool]] = False):
