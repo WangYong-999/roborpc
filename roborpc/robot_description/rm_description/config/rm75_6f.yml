@@ -7,11 +7,10 @@ robot_cfg:
     urdf_path: "rm_75_6f_description.urdf"
     base_link: "base_link"
     ee_link: "ee_link"
-    link_names: ["ee_link"]
     robot_names_link_names_pair:
-      - "ee_link": "realman_1"
-    robot_dof_link_names_pair:
-      - "ee_link": 7
+      - "realman_1": "ee_link"
+    robot_names_robot_dof_pair:
+      - "realman_1": [0, 7]
     collision_link_names:
       [
         "base_link",

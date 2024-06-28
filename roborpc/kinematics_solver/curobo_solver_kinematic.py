@@ -27,11 +27,11 @@ class CuroboSolverKinematic(KinematicSolverBase):
         self.robot_path = self.ik_config['robot_description']
 
         self.robot_names_link_names_pair = None
-        self.robot_dof_link_names_pair = None
+        self.robot_names_robot_dof_pair = None
         self.default_joint = None
         self.link_retract_pose = None
-        self.link_names = None
         self.ee_link_name = None
+        self.ee_robot_name = None
         self.robot_cfg = None
         self.world_cfg = None
         self.plan_config = None
@@ -52,11 +52,10 @@ class CuroboSolverKinematic(KinematicSolverBase):
         world_cfg_path = os.path.join(self.robot_path, 'config', world_cfg)
         self.robot_cfg = load_yaml(robot_cfg_path)['robot_cfg']
         self.ee_link_name = self.robot_cfg['kinematics']['ee_link']
-        self.link_names = self.robot_cfg['kinematics']['link_names']
         self.robot_names_link_names_pair = self.robot_cfg['kinematics']['robot_names_link_names_pair'][0]
-        self.robot_dof_link_names_pair = self.robot_cfg['kinematics']['robot_dof_link_names_pair'][0]
+        self.robot_names_robot_dof_pair = self.robot_cfg['kinematics']['robot_names_robot_dof_pair'][0]
         self.robot_cfg['kinematics'].pop('robot_names_link_names_pair')
-        self.robot_cfg['kinematics'].pop('robot_dof_link_names_pair')
+        self.robot_cfg['kinematics'].pop('robot_names_robot_dof_pair')
         self.default_joint = self.robot_cfg["kinematics"]["cspace"]["retract_config"]
         urdf_path = self.robot_cfg['kinematics']['urdf_path']
         asset_root_path = '../robot_description' + os.path.dirname(urdf_path)
@@ -104,38 +103,38 @@ class CuroboSolverKinematic(KinematicSolverBase):
         kin_state = self.ik_solver.fk(q_sample)
         ee_pose = CuroboPose(position=tensor_args.to_device(kin_state.ee_position),
                              quaternion=tensor_args.to_device(kin_state.ee_quaternion))
-        for link_name in self.link_names:
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
             if link_name != self.ee_link_name:
                 link_poses[link_name] = kin_state.link_pose[link_name].to_list()
+            else:
+                self.ee_robot_name = robot_name
         for i in range(5):
             _ = self.ik_solver.solve_batch(ee_pose, link_poses=link_poses)
         torch.cuda.synchronize()
 
     def forward_kinematics(self, joint_angles: Dict[str, List[float]]) -> Dict[str, List[float]]:
         link_pose = {}
-        print(self.robot_names_link_names_pair)
         joint_angles_list = []
-        for link_name, robot_name in self.robot_names_link_names_pair.items():
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
             joint_angles_list.append(joint_angles[robot_name])
         state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
         ee_position = state.ee_position.cpu().numpy()[0]
         ee_wxyz = state.ee_quaternion.cpu().numpy()[0]
-        link_pose[self.robot_names_link_names_pair[self.ee_link_name]] = np.concatenate(
+        link_pose[self.ee_robot_name] = np.concatenate(
             [ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
-        for link_name in self.link_names:
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
             if link_name != self.ee_link_name:
-                link_pose[self.robot_names_link_names_pair[link_name]] = state.link_pose[link_name].to_list()
+                link_pose[robot_name] = state.link_pose[link_name].to_list()
         # right_position = state.link_pose['ee_link_1'].position.cpu().numpy()[0]
         # right_wxyz = state.link_pose['ee_link_1'].quaternion.cpu().numpy()[0]
         return link_pose
 
     def inverse_kinematics(self, pose: Dict[str, List[float]]) -> Dict[str, List[float]]:
-        ee_link_name = self.robot_names_link_names_pair[self.ee_link_name]
-        ee_pose = CuroboPose(position=tensor_args.to_device(pose[ee_link_name][:3]),
+        ee_pose = CuroboPose(position=tensor_args.to_device(pose[self.ee_robot_name][:3]),
                              quaternion=tensor_args.to_device(
-                                 t3d.euler.euler2quat(*pose[ee_link_name][3:], axes='sxyz')))
+                                 t3d.euler.euler2quat(*pose[self.ee_robot_name][3:], axes='sxyz')))
         link_poses = {}
-        for link_name, robot_name in self.robot_names_link_names_pair.items():
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
             if link_name != self.ee_link_name:
                 link_poses[link_name] = CuroboPose(position=tensor_args.to_device(pose[robot_name][:3]),
                                                    quaternion=tensor_args.to_device(
@@ -148,9 +147,9 @@ class CuroboSolverKinematic(KinematicSolverBase):
             cmd_plan = result.js_solution
             cmd_plan = cmd_plan.get_ordered_joint_state(self.joints_name)
             result_position = list(cmd_plan.position.cpu().numpy()[0][0])
-            for link_name, robot_name in self.robot_names_link_names_pair.items():
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
                 joints_result = []
-                for i in range(self.robot_dof_link_names_pair[link_name]):
+                for i in range(*self.robot_names_robot_dof_pair[robot_name]):
                     joints_result.append(result_position.pop(0))
                 joint_angles[robot_name] = joints_result
             logger.success(f'Ik Solve Success. Solved joints is {self.ik_solver.kinematics.joint_names}.\n'

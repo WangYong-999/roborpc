@@ -4,7 +4,7 @@ import requests
 import zerorpc
 
 from roborpc.cameras.camera_utils import base64_rgb, base64_depth
-from robot_base import RobotBase
+from roborpc.robots.robot_base import RobotBase
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
 

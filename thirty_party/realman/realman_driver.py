@@ -15,7 +15,7 @@ class DriverRealman:
         """The initialization of Realman arm driver.
         """
 
-        arm_velocity = 25  # Percentage of the Realman max speed.
+        arm_velocity = 50  # Percentage of the Realman max speed.
         device_ip = "192.168.1.18"
         device_port = 8080
         gripper_time = 2.0  # in seconds
@@ -24,7 +24,7 @@ class DriverRealman:
         socket_time_out = 2.0  # in seconds
 
         home_pose = [0.0, -1.9, 0.0, 0.0, 0.0, 1.9,
-                     0.0]  # [0.0, -1.5708, 0.0, 0.0, 0.0, 1.5708, 0.0]  # unit: radian, TODO(zhiyuan), update home pose
+                     0.0]  # [0.0, -1.5708, 0.0, 0.0, 0.0, 1.5708, 0.0]  # unit: radian
         zero_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # unit: radian
         tray_pose = [-0.2775929272174835, -0.7669379711151123, -3.6843175888061523,
                      0.8580743074417114, 3.157172203063965, 4.292811393737793,
@@ -466,11 +466,15 @@ if __name__ == '__main__':
     print(realman.get_gripper_opening())
 
     # print(realman.get_gripper_opening())
-    # while True:
-    #     try:
-    #         realman.move_joints_radian_trajectory(np.array([[0.10136872295583066, 0.05989969992844539, -0.14184290830957919,
-    #                                               -1.846350833211097, 0.01965240737745615, -0.20198695433330377, 0.2375044046113884]]))
-    #         break
-    #     except Exception as e:
-    #         print(e)
-    #         break
+    while True:
+        try:
+            result =realman.move_joints_radian_trajectory(np.array([[0.0, 0.0, -3.1415926 / 2, -3.1415926 / 2,
+                                             0.0, -1.3106375484926218, 0.3370928917301848],
+                                            [0.0, 0.0, -3.1415926 / 2, -3.1415926 / 2,
+                                             0.0, -3.1415926 / 2, 0.0]
+                                            ]))
+            print(result)
+            break
+        except Exception as e:
+            print(e)
+            break

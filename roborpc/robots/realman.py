@@ -6,7 +6,7 @@ import asyncio
 import transforms3d.euler
 import argparse
 
-from robot_base import RobotBase
+from roborpc.robots.robot_base import RobotBase
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
 
@@ -46,7 +46,7 @@ class RealMan(RobotBase):
                               blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         for action_space, action in state.items():
             if action_space == "joint_position":
-                self.robot.move_joints_radian_trajectory(np.array([action]))
+                self.robot.move_joints_radian_trajectory(np.array(action))
             elif action_space == "gripper_position":
                 self.robot.set_gripper_opening(action[0])
             elif action_space == "cartesian_position":

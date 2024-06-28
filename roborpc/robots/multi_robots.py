@@ -5,7 +5,7 @@ from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
 from roborpc.robots.panda import Panda
 from roborpc.robots.realman import RealMan
-from robot_base import RobotBase
+from roborpc.robots.robot_base import RobotBase
 
 
 class MultiRobots(RobotBase):

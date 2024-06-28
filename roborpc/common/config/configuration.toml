@@ -46,7 +46,7 @@ robot_arm_dof = 7
 robot_gripper_dof = 1
 
 [roborpc.robots.dynamixel.dynamixel_controller_left_arm]
-start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
 joint_signs = [1, -1, 1, 1, 1, -1, 1]
 gripper = true
@@ -164,3 +164,9 @@ focus_distance = 400
 robot_cfg = 'rm75_6f.yml'
 world_cfg = 'collision_table.yml'
 robot_description = '/home/jz08/code_repo/roborpc/roborpc/robot_description/rm_description'
+
+[roborpc.motion_planning.curobo_planner]
+robot_cfg = 'rm75_6f.yml'
+world_cfg = 'collision_table.yml'
+robot_description = '/home/jz08/code_repo/roborpc/roborpc/robot_description/rm_description'
+
