@@ -77,5 +77,7 @@ if __name__ == '__main__':
 
     multi_controller = MultiControllers()
     s = zerorpc.Server(multi_controller)
-    s.bind(f"tcp://0.0.0.0:{multi_controller.controller_config['sever_rpc_ports'][0]}")
+    rpc_port = multi_controller.controller_config['sever_rpc_ports'][0]
+    logger.info(f"RPC server started on port {rpc_port}")
+    s.bind(f"tcp://0.0.0.0:{rpc_port}")
     s.run()

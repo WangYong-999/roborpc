@@ -130,6 +130,14 @@ class MultiRobots(RobotBase):
             self.ee_poses[robot_id] = pose.result()
         return self.ee_poses
 
+if __name__ == '__main__':
+    import zerorpc
+    multi_robots = MultiRobots()
+    s = zerorpc.Server(multi_robots)
+    rpc_port = multi_robots.robot_config['sever_rpc_ports'][0]
+    logger.info(f"RPC Server Start on {rpc_port}")
+    s.bind(f"tcp://0.0.0.0:{rpc_port}")
+    s.run()
 
 
 

@@ -4,7 +4,6 @@ from roborpc.motion_planning.curobo_planner import CuroboPlanner
 from roborpc.robots.multi_robots import MultiRobots
 
 if __name__ == '__main__':
-    import zerorpc
     planner = CuroboPlanner()
     multi_realman = MultiRobots()
     multi_realman.connect_now()

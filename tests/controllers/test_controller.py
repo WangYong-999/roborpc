@@ -1,4 +1,7 @@
+import os
 import subprocess
+
+from roborpc.common.config_loader import config
 from roborpc.robot_env import RobotEnv
 from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 

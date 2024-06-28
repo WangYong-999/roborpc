@@ -35,10 +35,11 @@ class DynamixelController(ControllerBase):
         self.reset_state()
 
         assert np.allclose(np.array(self.robot.get_robot_state()["robot_positions"]),
-                           self.robot.start_joints, rtol=2, atol=2)
+                           self.robot.start_joints, rtol=2, atol=2), "Robot is not in start position"
         threading.Thread(target=self.run_key_listen).start()
         threading.Thread(target=self._update_internal_state).start()
         time.sleep(1)
+        logger.info(f"Connected to Dynamixel with ID {self.controller_id}")
         return result
 
     def disconnect_now(self) -> Union[bool, Dict[str, bool]]:

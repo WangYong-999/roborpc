@@ -54,6 +54,7 @@ class ComposedMultiController(ControllerBase):
             self.composed_multi_controllers[server_ip_address] = MultiControllersRpc(server_ip_address, rpc_port)
             result.update(self.composed_multi_controllers[server_ip_address].connect_now())
             logger.info("Connected to server: " + server_ip_address + ":" + rpc_port)
+            print(result)
         return result
 
     def disconnect_now(self) -> Union[bool, Dict[str, bool]]:
