@@ -1,68 +1,71 @@
-[![Multi-Modality](agorabanner.png)](https://discord.gg/qUtxnK2NMf)
 
-# Python Package Template
-A easy, reliable, fluid template for python packages complete with docs, testing suites, readme's, github workflows, linting and much much more
+# ROBORPC
+Roborpc is a Python package that allows you to communicate with the sim robots and real robots using RPC.
+
+![Multi-Modality](roborpc.jpg)
 
 
 ## Installation
-```cmake
-https://docs.omniverse.nvidia.com/isaacsim/latest/replicator_tutorials/tutorial_replicator_isaac_randomizers.html?highlight=PhysxSchema#physics-based-randomized-volume-filling
-```
 
 You can install the package using pip
 
 ```bash
 conda create -n roborpc python=3.8
 conda activate roborpc
+pip install -r requirements.txt
 pip install -e .
 ```
 
 # Usage
+
+### Robots Data Collection 🧹
+
+-  Hardware preparation related to [`hardware_preparation.md`](https://github.com/WangYong-999/roborpc/blob/main/docs/hardware_preparation.md)
+-  Software preparation related to [`software_preparation.md`](https://github.com/WangYong-999/roborpc/blob/main/docs/software_preparation.md)
+-  Robots data collection related to [`data_collection.md`](https://github.com/WangYong-999/roborpc/blob/main/docs/data_collection.md)
+- 
+### Robots Evaluation 🚀
 ```python
-print("hello world")
+import subprocess
 
+from roborpc.robot_env import RobotEnv
+
+if __name__ == '__main__':
+    try:
+        controller_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/controllers/multi_controllers.py"',
+            shell=True)
+        robot_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/robots/multi_robots.py"',
+            shell=True)
+        camera_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py"',
+            shell=True)
+        robot_env = RobotEnv()
+        controller = robot_env.controllers
+        while True:
+            try:
+                obs = robot_env.get_observation()
+                action = controller.forward(obs)
+                print(action)
+                # robot_env.step(action)
+            except KeyboardInterrupt:
+                controller_pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
+                robot_pid = subprocess.run(["pgrep", "-f", "multi_robots"], capture_output=True)
+                camera_pid = subprocess.run(["pgrep", "-f", "multi_cameras"], capture_output=True)
+                subprocess.run(["kill", "-9", *(controller_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                subprocess.run(["kill", "-9", *(robot_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                subprocess.run(["kill", "-9", *(camera_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                break
+    except Exception as e:
+        print(e)
+        controller_pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
+        robot_pid = subprocess.run(["pgrep", "-f", "multi_robots"], capture_output=True)
+        camera_pid = subprocess.run(["pgrep", "-f", "multi_cameras"], capture_output=True)
+        subprocess.run(["kill", "-9", *(controller_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+        subprocess.run(["kill", "-9", *(robot_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+        subprocess.run(["kill", "-9", *(camera_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
 ```
-
-
-
-### Code Quality 🧹
-
-- `make style` to format the code
-- `make check_code_quality` to check code quality (PEP8 basically)
-- `black .`
-- `ruff . --fix`
-
-### Tests 🧪
-
-[`pytests`](https://docs.pytest.org/en/7.1.x/) is used to run our tests.
-
-### Publish on PyPi 🚀
-
-**Important**: Before publishing, edit `__version__` in [src/__init__](/src/__init__.py) to match the wanted new version.
-
-```
-poetry build
-poetry publish
-```
-
-### CI/CD 🤖
-
-We use [GitHub actions](https://github.com/features/actions) to automatically run tests and check code quality when a new PR is done on `main`.
-
-On any pull request, we will check the code quality and tests.
-
-When a new release is created, we will try to push the new code to PyPi. We use [`twine`](https://twine.readthedocs.io/en/stable/) to make our life easier. 
-
-The **correct steps** to create a new realease are the following:
-- edit `__version__` in [src/__init__](/src/__init__.py) to match the wanted new version.
-- create a new [`tag`](https://git-scm.com/docs/git-tag) with the release name, e.g. `git tag v0.0.1 && git push origin v0.0.1` or from the GitHub UI.
-- create a new release from GitHub UI
-
-The CI will run when you create the new release.
-
-# Docs
-We use MK docs. This repo comes with the zeta docs. All the docs configurations are already here along with the readthedocs configs.
-
 
 
 # License

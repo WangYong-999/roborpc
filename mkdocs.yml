@@ -80,7 +80,7 @@ nav:
     - Metric: "metric.md"
     - Distribution: "distribution"
     - Research: "research.md"
-    - Demos: "demos.md"
+    - Demos: "hardware_preparation.md"
     - Architecture: "architecture.md"
     - Checklist: "checklist.md"
     - Hiring: "hiring.md"

@@ -1,21 +1,20 @@
-import os
 import subprocess
 
-from roborpc.common.config_loader import config
 from roborpc.robot_env import RobotEnv
-from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 
 if __name__ == '__main__':
     try:
-        pid = subprocess.Popen('bash -c "python /home/jz08/code_repo/roborpc/roborpc/controllers/multi_controllers.py"',
-                               shell=True)
-        controller = ComposedMultiController()
-        result = controller.connect_now()
+        controller_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/controllers/multi_controllers.py"',
+            shell=True)
+        robot_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/robots/multi_robots.py"',
+            shell=True)
+        camera_pid = subprocess.Popen(
+            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py"',
+            shell=True)
         robot_env = RobotEnv()
-        print(result)
-        for r in result.values():
-            if not r:
-                raise Exception("Failed to connect to all controllers")
+        controller = robot_env.controllers
         while True:
             try:
                 obs = robot_env.get_observation()
@@ -23,10 +22,18 @@ if __name__ == '__main__':
                 print(action)
                 # robot_env.step(action)
             except KeyboardInterrupt:
-                pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
-                subprocess.run(["kill", "-9", *(pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                controller_pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
+                robot_pid = subprocess.run(["pgrep", "-f", "multi_robots"], capture_output=True)
+                camera_pid = subprocess.run(["pgrep", "-f", "multi_cameras"], capture_output=True)
+                subprocess.run(["kill", "-9", *(controller_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                subprocess.run(["kill", "-9", *(robot_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+                subprocess.run(["kill", "-9", *(camera_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
                 break
     except Exception as e:
         print(e)
-        pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
-        subprocess.run(["kill", "-9", *(pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+        controller_pid = subprocess.run(["pgrep", "-f", "multi_controllers"], capture_output=True)
+        robot_pid = subprocess.run(["pgrep", "-f", "multi_robots"], capture_output=True)
+        camera_pid = subprocess.run(["pgrep", "-f", "multi_cameras"], capture_output=True)
+        subprocess.run(["kill", "-9", *(controller_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+        subprocess.run(["kill", "-9", *(robot_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])
+        subprocess.run(["kill", "-9", *(camera_pid.stdout.decode('utf-8').strip().rstrip().split('\n'))])

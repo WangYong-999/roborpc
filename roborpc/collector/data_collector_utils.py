@@ -11,13 +11,11 @@ from PIL import Image
 import h5py
 
 from roborpc.common.logger_loader import logger
-from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 from roborpc.robot_env import RobotEnv
 
 
 def collect_trajectory(
         env: RobotEnv,
-        controller: ComposedMultiController,
         horizon: Optional[int] = None,
         hdf5_file: Optional[str] = None,
         metadata: Optional[Dict] = None,
@@ -25,6 +23,7 @@ def collect_trajectory(
         reset_robot: bool = True,
 ):
     traj_writer = None
+    controller = env.controller
     if hdf5_file:
         traj_writer = TrajectoryWriter(hdf5_file, metadata=metadata)
 

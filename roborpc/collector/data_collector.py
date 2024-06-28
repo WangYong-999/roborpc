@@ -7,14 +7,12 @@ from roborpc.common.logger_loader import logger
 from roborpc.collector.data_collector_utils import collect_trajectory
 
 from roborpc.robot_env import RobotEnv
-from roborpc.controllers.composed_multi_controllers import ComposedMultiController
 
 
 class DataCollector:
-    def __init__(self, env: RobotEnv, controller: ComposedMultiController):
+    def __init__(self, env: RobotEnv):
         self.last_traj_name = None
         self.env = env
-        self.controller = controller
 
         collector_config = config["roborpc"]["collector"]["data_collector"]
         data_dir = collector_config["save_data_dir"]
@@ -63,7 +61,6 @@ class DataCollector:
         self.traj_running = True
         controller_info = collect_trajectory(
             self.env,
-            controller=self.controller,
             hdf5_file=save_filepath,
             horizon=self.horizon,
             metadata=info,

@@ -66,3 +66,14 @@ class MultiCameras(CameraBase):
         for camera_id, frame in camera_frames.items():
             camera_frames[camera_id] = frame.result()
         return camera_frames
+
+
+if __name__ == '__main__':
+    import zerorpc
+
+    multi_camera = MultiCameras()
+    s = zerorpc.Server(multi_camera)
+    rpc_port = multi_camera.camera_config['sever_rpc_ports'][0]
+    logger.info(f"RPC server started on port {rpc_port}")
+    s.bind(f"tcp://0.0.0.0:{rpc_port}")
+    s.run()

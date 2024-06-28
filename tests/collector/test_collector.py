@@ -9,10 +9,8 @@ if __name__ == '__main__':
         controller_pid = subprocess.Popen(
             'bash -c "python /home/jz08/code_repo/roborpc/roborpc/controllers/multi_controllers.py"',
             shell=True)
-        controller = ComposedMultiController()
-        controller.connect_now()
         robot_env = RobotEnv()
-        collector = DataCollector(env=robot_env, controller=controller)
+        collector = DataCollector(env=robot_env)
 
         while True:
             try:
