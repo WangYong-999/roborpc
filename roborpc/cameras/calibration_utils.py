@@ -8,6 +8,11 @@ import matplotlib.pyplot as plt
 from cv2 import aruco
 
 
+CHARUCOBOARD_ROWCOUNT = 7
+CHARUCOBOARD_COLCOUNT = 5
+CHARUCOBOARD_CHECKER_SIZE = 0.032
+CHARUCOBOARD_MARKER_SIZE = 0.020
+ARUCO_DICT = aruco.Dictionary_get(aruco.DICT_6X6_250)
 CHARUCO_BOARD = aruco.CharucoBoard_create(
     squaresX=CHARUCOBOARD_COLCOUNT,
     squaresY=CHARUCOBOARD_ROWCOUNT,

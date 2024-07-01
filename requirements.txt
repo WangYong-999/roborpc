@@ -23,3 +23,6 @@ xarm
 xarm-python-sdk
 numpy-quaternion
 termcolor
+opencv-python==4.6.0.66
+opencv-contrib-python==4.6.0.66
+matplotlib

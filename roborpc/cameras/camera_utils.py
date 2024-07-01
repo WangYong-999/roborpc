@@ -8,12 +8,11 @@ import numpy as np
 from roborpc.cameras.calibration_utils import HandCameraCalibrator, ThirdPersonCameraCalibrator, calibration_traj, \
     update_calibration_info
 from roborpc.common.logger_loader import logger
-from roborpc.robot_env import RobotEnv
 from roborpc.cameras.transformations import change_pose_frame
 
 
 def calibrate_camera(
-        env: RobotEnv,
+        env,
         camera_id: str,
         controller_id: str,
         robot_id: str,

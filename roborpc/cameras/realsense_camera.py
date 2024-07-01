@@ -1,11 +1,19 @@
-import asyncio
 import time
 import numpy as np
 import pyrealsense2 as rs
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from roborpc.cameras.camera_base import CameraBase
 from roborpc.cameras.camera_utils import rgb_to_base64, depth_to_base64
+
+
+ctx = rs.context()
+devices = ctx.query_devices()
+DEVICE_IDS = []
+for dev in devices:
+    dev.hardware_reset()
+    DEVICE_IDS.append(dev.get_info(rs.camera_info.serial_number))
+time.sleep(2)
 
 
 class RealSenseCamera(CameraBase):
@@ -20,6 +28,10 @@ class RealSenseCamera(CameraBase):
     def connect_now(self):
         self.pipeline = rs.pipeline()
         config = rs.config()
+        all_devices = DEVICE_IDS
+        if self.device_id not in all_devices:
+            raise ValueError(f"Device {self.device_id} not found. Available devices: {all_devices}")
+        print(f"Using device {self.device_id}")
         config.enable_device(self.device_id)
 
         config.enable_stream(rs.stream.depth, self.camera_resolution[0], self.camera_resolution[1], rs.format.z16, self.fps)
@@ -32,16 +44,9 @@ class RealSenseCamera(CameraBase):
         self.device_id = None
 
     def get_device_ids(self) -> List[str]:
-        ctx = rs.context()
-        devices = ctx.query_devices()
-        device_ids = []
-        for dev in devices:
-            dev.hardware_reset()
-            device_ids.append(dev.get_info(rs.camera_info.serial_number))
-        time.sleep(2)
-        return device_ids
+        pass
 
-    async def get_camera_intrinsics(self) -> Dict[str, Dict[str, List[float]]]:
+    def get_camera_intrinsics(self) -> Dict[str, Dict[str, List[float]]]:
         def _process_intrinsics(params):
             return {"cameraMatrix": [[params.fx, 0, params.ppx], [0, params.fy, params.ppy], [0, 0, 1]],
                     "distCoeffs": list(params.coeffs)}
@@ -61,10 +66,10 @@ class RealSenseCamera(CameraBase):
         #     json.dump(self.intrinsics, jsonFile)
         return intrinsics
 
-    async def get_camera_extrinsics(self) -> Dict[str, List[float]]:
+    def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         pass
 
-    async def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, str]]:
         frames = self.pipeline.wait_for_frames()
         color_frame = frames.get_color_frame()
         color_image = np.asanyarray(color_frame.get_data())
@@ -74,7 +79,7 @@ class RealSenseCamera(CameraBase):
         image = color_image[:, :, ::-1]
         depth = depth_image
         camera_info = {
-            "color": rgb_to_base64(image),
-            "depth": rgb_to_base64(depth)
+            "color": rgb_to_base64(image, quality=10),
+            "depth": depth_to_base64(depth, quality=10)
         }
         return camera_info

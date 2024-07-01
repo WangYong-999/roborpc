@@ -39,7 +39,6 @@ class MultiControllersRpc(ControllerBase):
 
 class ComposedMultiController(ControllerBase):
 
-
     def __init__(self):
         super().__init__()
         self.composed_multi_controllers = {}
