@@ -48,8 +48,8 @@ def get_joint_offsets(
             best_offsets.append(best_offset)
         joint_offset_list = [int(np.round(x / (np.pi / 2))) * np.pi / 2 for x in best_offsets]
         if gripper_config:
-            gripper_offset_list = [int(np.rad2deg(driver.get_joints()[-1]) - 0.2),
-                                   int(np.rad2deg(driver.get_joints()[-1]) - 42)]
+            gripper_offset_list = [int(np.rad2deg(driver.get_joints()[-1]) - 42),
+                                   int(np.rad2deg(driver.get_joints()[-1]) - 0.2)]
 
     driver.close()
     del driver

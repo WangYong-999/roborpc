@@ -299,7 +299,8 @@ class DriverRealman:
             joints_in_rm_degree = self._std_rad_to_rm_deg(joints)
             data = json.dumps({
                 'command': 'movej_canfd',
-                'joint': joints_in_rm_degree
+                'joint': joints_in_rm_degree,
+                'follow': "true"
             })
             data += '\r\n'
             if 'trajectory_state' not in self._send_msg_with_retry(data):
@@ -465,14 +466,11 @@ if __name__ == '__main__':
     print(realman.get_joints_radian().tolist())
     print(realman.get_gripper_opening())
 
-    # print(realman.get_gripper_opening())
+    print(realman.get_gripper_opening())
     while True:
         try:
-            result =realman.move_joints_radian_trajectory(np.array([[0.0, 0.0, -3.1415926 / 2, -3.1415926 / 2,
-                                             0.0, -1.3106375484926218, 0.3370928917301848],
-                                            [0.0, 0.0, -3.1415926 / 2, -3.1415926 / 2,
-                                             0.0, -3.1415926 / 2, 0.0]
-                                            ]))
+            result =realman.reach_joints_radian(np.array([-0.2530378349541379, -0.07663740745507101, 0.08124507668033605,
+                                                          -1.495572636033941, 0.03830997708127553, -1.5692953436381816, -0.17636552091402702]))
             print(result)
             break
         except Exception as e:

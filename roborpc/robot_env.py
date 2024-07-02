@@ -54,15 +54,19 @@ class RobotEnv(gym.Env):
                     action_info[action_id] = {'joint_position': self.kinematic_solver.inverse_kinematics(pose)}
                 if action_space_id == 'joint_position':
                     if blocking is True:
-                        blocking_info[action_id] = {'joint_position': True}
+                        blocking_info = {action_id: True}
+                    else:
+                        blocking_info = {action_id: False}
                     action_info[action_id] = {'joint_position': action_value}
                     joints_angle = {action_id: action_value}
                     action_info[action_id] = {
-                        'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)}
+                        'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]}
                 if action_space_id == 'gripper_position':
                     if blocking is True:
                         blocking_info[action_id] = {'gripper_position': True}
                     action_info[action_id] = {'gripper_position': action_value}
+        print(action)
+        print(blocking_info)
         self.robots.set_robot_state(action, blocking_info)
         return action_info
 
@@ -72,7 +76,7 @@ class RobotEnv(gym.Env):
     def get_observation(self):
         observation = {}
         observation.update(self.robots.get_robot_state())
-        observation.update(self.cameras.read_camera())
+        # observation.update(self.cameras.read_camera())
         return observation
 
     def collect_data(self):

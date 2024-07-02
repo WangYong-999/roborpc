@@ -79,7 +79,7 @@ class MultiControllers(ControllerBase):
     def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         result_dict = {}
         for idx, controller_id in enumerate(self.controller_ids):
-            result_dict[controller_id] = self.controllers[controller_id].forward(obs_dict[self.control_robot_ids[idx]])
+            result_dict[self.control_robot_ids[idx]] = self.controllers[controller_id].forward(obs_dict[self.control_robot_ids[idx]])
         return result_dict
 
 

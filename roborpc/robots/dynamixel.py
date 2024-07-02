@@ -141,7 +141,7 @@ class Dynamixel(RobotBase):
         robot_states = {
             # "cartesian_position": end_effector_world_pose,
             "gripper_position": list(pos[-1:]),
-            "joint_positions": list(pos[:-1]),
+            "joint_position": list(pos[:-1]),
             "robot_positions": list(pos),
             # "joint_velocities": arm_joints_velocities,
             # "joint_torques_computed": arm_joint_torques_computed,

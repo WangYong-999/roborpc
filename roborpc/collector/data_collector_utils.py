@@ -86,7 +86,7 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str, read_color: bool = True
         timestep = traj_reader.read_timestep()
 
         if i == 0:
-            init_joint_position = timestep["observation"]["robot_state"]["joint_positions"]
+            init_joint_position = timestep["observation"]["robot_state"]["joint_position"]
             init_gripper_position = timestep["observation"]["robot_state"]["gripper_position"]
             action = np.concatenate([init_joint_position, [init_gripper_position]])
             env.update_robot(action, action_space="joint_position", blocking=True)

@@ -130,6 +130,7 @@ class MultiRobots(RobotBase):
             self.ee_poses[robot_id] = pose.result()
         return self.ee_poses
 
+
 if __name__ == '__main__':
     import zerorpc
     multi_robots = MultiRobots()

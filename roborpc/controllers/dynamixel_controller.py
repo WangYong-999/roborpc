@@ -118,7 +118,7 @@ class DynamixelController(ControllerBase):
             logger.info("No gello_joints yet, waiting...")
         start_pos = np.asarray(self.state["gello_joints"][self.controller_id])
 
-        obs_joints = state_dict["joint_positions"]
+        obs_joints = state_dict["joint_position"]
         obs_gripper = state_dict["gripper_position"]
         if type(obs_gripper) == list:
             obs_gripper_new = obs_gripper[0]
@@ -155,14 +155,14 @@ class DynamixelController(ControllerBase):
             self.move_start_flag = False
         if self.move_start_flag:
             command_joints = np.asarray(self.state["gello_joints"][self.controller_id])
-            current_joints = np.concatenate([state_dict["joint_positions"], [state_dict["gripper_position"]]])
+            current_joints = np.concatenate([state_dict["joint_position"], state_dict["gripper_position"]])
             delta = command_joints - current_joints
             max_joint_delta = np.abs(delta).max()
             if max_joint_delta > max_delta:
                 delta = delta / max_joint_delta * max_delta
             return current_joints + delta
 
-        joints = np.concatenate([state_dict["joint_positions"], [state_dict["gripper_position"]]])
+        joints = np.concatenate([state_dict["joint_position"], state_dict["gripper_position"]])
         action = np.asarray(self.state["gello_joints"][self.controller_id])
         if (action - joints > 0.5).any():
             logger.info("Joints are too big, exiting...")
@@ -193,4 +193,4 @@ class DynamixelController(ControllerBase):
     def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         if not self.goto_start_pos:
             self.go_start_joints(obs_dict)
-        return {"joint_positions": self.calculate_action().tolist()}
+        return {"joint_position": self.calculate_action().tolist()}

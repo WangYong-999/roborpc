@@ -257,7 +257,7 @@ class IsaacSimFrankaApp:
         robot_states = {
             "cartesian_position": end_effector_world_pose,
             "gripper_position": gripper_joints_radian,
-            "joint_positions": arm_joints_radian,
+            "joint_position": arm_joints_radian,
             "joint_velocities": arm_joints_velocities,
             "joint_torques_computed": arm_joint_torques_computed,
             "prev_joint_torques_computed": arm_joint_torques_computed,

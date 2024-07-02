@@ -29,41 +29,41 @@ class MutilRobotsRpc(RobotBase):
     def get_robot_ids(self) -> List[str]:
         return self.robots.get_robot_ids()
 
-    async def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                               blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         self.robots.set_robot_state(state, blocking)
 
-    async def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
+    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                           action_space: Union[str, Dict[str, str]] = "cartesian_position",
                           blocking: Union[bool, Dict[str, bool]] = False):
         self.robots.set_ee_pose(action, action_space, blocking)
 
-    async def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
+    def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
                          action_space: Union[str, Dict[str, str]] = "joint_position",
                          blocking: Union[bool, Dict[str, bool]] = False):
         self.robots.set_joints(action, action_space, blocking)
 
-    async def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
+    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
                           action_space: Union[str, Dict[str, str]] = "gripper_position",
                           blocking: Union[bool, Dict[str, bool]] = False):
         self.robots.set_gripper(action, action_space, blocking)
 
-    async def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, List[float]]:
         return self.robots.get_robot_state()
 
     def get_dofs(self) -> Dict[str, int]:
         return self.robots.get_dofs()
 
-    async def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
         return self.robots.get_joint_positions()
 
-    async def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         return self.robots.get_gripper_position()
 
-    async def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         return self.robots.get_joint_velocities()
 
-    async def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         return self.robots.get_ee_pose()
 
 
@@ -104,8 +104,7 @@ class ComposedMultiRobots(RobotBase):
             for robot_id in multi_robots.get_robot_ids():
                 new_state.update({robot_id: state[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
-            multi_robots_task.append(multi_robots.set_robot_state(new_state, new_blocking))
-        self.loop.run_until_complete(asyncio.gather(*multi_robots_task))
+            multi_robots.set_robot_state(new_state, new_blocking)
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "cartesian_position",
@@ -119,8 +118,7 @@ class ComposedMultiRobots(RobotBase):
                 new_action.update({robot_id: action[robot_id]})
                 new_action_space.update({robot_id: action_space[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
-            multi_robots_task.append(multi_robots.set_ee_pose(new_action, new_action_space, new_blocking))
-        self.loop.run_until_complete(asyncio.gather(*multi_robots_task))
+            multi_robots.set_ee_pose(new_action, new_action_space, new_blocking)
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
                    action_space: Union[str, Dict[str, str]] = "joint_position",
@@ -134,8 +132,7 @@ class ComposedMultiRobots(RobotBase):
                 new_action.update({robot_id: action[robot_id]})
                 new_action_space.update({robot_id: action_space[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
-            multi_robots_task.append(multi_robots.set_joints(new_action, new_action_space, new_blocking))
-        self.loop.run_until_complete(asyncio.gather(*multi_robots_task))
+            multi_robots.set_joints(new_action, new_action_space, new_blocking)
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "gripper_position",
@@ -149,17 +146,15 @@ class ComposedMultiRobots(RobotBase):
                 new_action.update({robot_id: action[robot_id]})
                 new_action_space.update({robot_id: action_space[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
-            multi_robots_task.append(multi_robots.set_gripper(new_action, new_action_space, new_blocking))
-        self.loop.run_until_complete(asyncio.gather(*multi_robots_task))
+            multi_robots.set_gripper(new_action, new_action_space, new_blocking)
 
     def get_robot_state(self) -> Dict[str, List[float]]:
         robot_states = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            robot_states[server_ip_address] = asyncio.ensure_future(multi_robots.get_robot_state())
-        self.loop.run_until_complete(asyncio.gather(*robot_states.values()))
+            robot_states[server_ip_address] = multi_robots.get_robot_state()
         new_robot_state = {}
         for server_ip_address, robot_state in robot_states.items():
-            robot_states[server_ip_address] = robot_state.result()
+            robot_states[server_ip_address] = robot_state
             for robot_id, state in robot_states[server_ip_address].items():
                 new_robot_state[robot_id] = state
         return new_robot_state
@@ -177,11 +172,10 @@ class ComposedMultiRobots(RobotBase):
     def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
         joint_positions = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            joint_positions[server_ip_address] = asyncio.ensure_future(multi_robots.get_joint_positions())
-        self.loop.run_until_complete(asyncio.gather(*joint_positions.values()))
+            joint_positions[server_ip_address] = multi_robots.get_joint_positions()
         new_joint_positions = {}
         for server_ip_address, joint_position in joint_positions.items():
-            joint_positions[server_ip_address] = joint_position.result()
+            joint_positions[server_ip_address] = joint_position
             for robot_id, position in joint_positions[server_ip_address].items():
                 new_joint_positions[robot_id] = position
         return new_joint_positions
@@ -189,11 +183,10 @@ class ComposedMultiRobots(RobotBase):
     def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         gripper_positions = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            gripper_positions[server_ip_address] = asyncio.ensure_future(multi_robots.get_gripper_position())
-        self.loop.run_until_complete(asyncio.gather(*gripper_positions.values()))
+            gripper_positions[server_ip_address] = multi_robots.get_gripper_position()
         new_gripper_positions = {}
         for server_ip_address, gripper_position in gripper_positions.items():
-            gripper_positions[server_ip_address] = gripper_position.result()
+            gripper_positions[server_ip_address] = gripper_position
             for robot_id, position in gripper_positions[server_ip_address].items():
                 new_gripper_positions[robot_id] = position
         return new_gripper_positions
@@ -201,11 +194,10 @@ class ComposedMultiRobots(RobotBase):
     def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         joint_velocities = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            joint_velocities[server_ip_address] = asyncio.ensure_future(multi_robots.get_joint_velocities())
-        self.loop.run_until_complete(asyncio.gather(*joint_velocities.values()))
+            joint_velocities[server_ip_address] = multi_robots.get_joint_velocities()
         new_joint_velocities = {}
         for server_ip_address, joint_velocity in joint_velocities.items():
-            joint_velocities[server_ip_address] = joint_velocity.result()
+            joint_velocities[server_ip_address] = joint_velocity
             for robot_id, velocity in joint_velocities[server_ip_address].items():
                 new_joint_velocities[robot_id] = velocity
         return new_joint_velocities
@@ -213,11 +205,10 @@ class ComposedMultiRobots(RobotBase):
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         ee_poses = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
-            ee_poses[server_ip_address] = asyncio.ensure_future(multi_robots.get_ee_pose())
-        self.loop.run_until_complete(asyncio.gather(*ee_poses.values()))
+            ee_poses[server_ip_address] = multi_robots.get_ee_pose()
         new_ee_poses = {}
         for server_ip_address, ee_pose in ee_poses.items():
-            ee_poses[server_ip_address] = ee_pose.result()
+            ee_poses[server_ip_address] = ee_pose
             for robot_id, pose in ee_poses[server_ip_address].items():
                 new_ee_poses[robot_id] = pose
         return new_ee_poses
