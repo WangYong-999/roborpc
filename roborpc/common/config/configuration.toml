@@ -7,7 +7,7 @@ env_update_rate = 30
 # ON or OFF
 robot_ids = [['realman_1']]
 server_ips_address = ['192.168.1.100']
-sever_rpc_ports = ['4244']
+sever_rpc_ports = ['']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -59,27 +59,28 @@ baudrate = 1000000
 # This section defines the camera configuration for the robots.
 [roborpc.cameras]
 # ON or OFF
-camera_ids = [['realsense_camera_1'], ['realsense_camera_2']]
-server_ips_address = ['127.0.0.1', '127.0.0.2']
-server_rpc_ports = ['4247', '4248']
+camera_ids = [['realsense_camera_1']]
+server_ips_address = ['127.0.0.1']
+server_rpc_ports = ['']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
-camera_resolution = [1280, 720]
-camera_fps = 30
-camera_serial_number = '218622275485'
-
-[roborpc.cameras.realsense_camera.realsense_camera_2]
-camera_resolution = [1280, 720]
+camera_resolution = [640, 480]
 camera_fps = 30
 camera_serial_number = '231122070394'
+
+[roborpc.cameras.realsense_camera.realsense_camera_2]
+camera_resolution = [640, 480]
+camera_fps = 30
+camera_serial_number = '218622275485'
 
 ######### Controller Configuration #########
 # This section defines the controller configuration for the robots.
 [roborpc.controllers]
 # ON or OFF
 controller_ids = [['dynamixel_controller_left_arm']]
+control_robot_ids = [['realman_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4246']
+sever_rpc_ports = ['']
 
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.

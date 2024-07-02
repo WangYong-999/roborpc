@@ -149,8 +149,8 @@ def base64_rgb(isaac_sim_rgb):
     rgb_bytes = base64.b64decode(isaac_sim_rgb)
     rgb_np = np.frombuffer(rgb_bytes, dtype=np.uint8)
     rgb = cv2.imdecode(rgb_np, cv2.IMREAD_COLOR)
-    rgb_np = np.array(rgb)
-    return rgb_np
+    rgb_list = np.array(rgb).tolist()
+    return rgb_list
 
 
 def base64_depth(isaac_sim_depth):
@@ -164,7 +164,7 @@ def base64_depth(isaac_sim_depth):
     #     depth_imgs.append(depth_scaled + float(depth["depthMin"]))
     # src_depth = np.array(depth_imgs[0])
     # cur_depth = np.array(depth_imgs[1])
-    depth_np = np.array(depth_unscaled)
-    return depth_np
+    depth_list = np.array(depth_unscaled).tolist()
+    return depth_list
 
 

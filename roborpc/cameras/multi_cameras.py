@@ -74,8 +74,8 @@ if __name__ == '__main__':
     rpc_port = parser.parse_args().rpc_port
     camera_ids = parser.parse_args().camera_ids
 
-    multi_camera = MultiCameras(list(camera_ids.split(',')))
-    s = zerorpc.Server(multi_camera)
+    multi_camera = MultiCameras(list(camera_ids.split(',')) if camera_ids is not None else None)
+    s = zerorpc.Server(multi_camera, heartbeat=100)
     if rpc_port is None:
         rpc_port = multi_camera.camera_config['server_rpc_ports'][0]
     logger.info(f"RPC server started on port {rpc_port}")

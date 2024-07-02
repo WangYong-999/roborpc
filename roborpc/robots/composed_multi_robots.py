@@ -6,6 +6,7 @@ import zerorpc
 from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
 from roborpc.robots.robot_base import RobotBase
+from roborpc.robots.multi_robots import MultiRobots
 
 
 class MutilRobotsRpc(RobotBase):
@@ -76,7 +77,10 @@ class ComposedMultiRobots(RobotBase):
         server_ips_address = self.robot_config["server_ips_address"]
         sever_rpc_ports = self.robot_config["sever_rpc_ports"]
         for server_ip_address, sever_rpc_port in zip(server_ips_address, sever_rpc_ports):
-            self.composed_multi_robots[server_ip_address] = MutilRobotsRpc(server_ip_address, sever_rpc_port)
+            if server_ip_address == "127.0.0.1" or sever_rpc_port == "":
+                self.composed_multi_robots[server_ip_address] = MultiRobots()
+            else:
+                self.composed_multi_robots[server_ip_address] = MutilRobotsRpc(server_ip_address, sever_rpc_port)
             self.composed_multi_robots[server_ip_address].connect_now()
             logger.info(f"Multi Robot {server_ip_address}:{sever_rpc_port} Connect Success!")
 
