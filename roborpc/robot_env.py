@@ -4,6 +4,7 @@ from typing import Dict, List, Union
 
 import gym
 from roborpc.common.config_loader import config
+from roborpc.common.logger_loader import logger
 
 from roborpc.robots.composed_multi_robots import ComposedMultiRobots
 from roborpc.cameras.composed_multi_cameras import ComposedMultiCameras
@@ -42,31 +43,33 @@ class RobotEnv(gym.Env):
 
     def step(self, action: Dict[str, Dict[str, List[float]]],
              blocking: Union[bool, Dict[str, List[bool]]] = False) -> Dict[str, Dict[str, List[float]]]:
-        action_info = {}
-        blocking_info = {}
+        blocking_info, action_info = {}, {}
         for action_id, action_space_and_action in action.items():
+            blocking_info = {action_id: {}}
+            action_info = {action_id: {}}
             for action_space_id, action_value in action_space_and_action.items():
                 if action_space_id == 'cartesian_position':
                     if blocking is True:
-                        blocking_info[action_id] = {'cartesian_position': True}
-                    action_info[action_id] = {'cartesian_position': action_value}
+                        blocking_info[action_id].update({'cartesian_position': True})
+                    action_info[action_id].update({'cartesian_position': action_value})
                     pose = {action_id: action_value}
-                    action_info[action_id] = {'joint_position': self.kinematic_solver.inverse_kinematics(pose)}
+                    action_info[action_id].update({'joint_position': self.kinematic_solver.inverse_kinematics(pose)})
                 if action_space_id == 'joint_position':
                     if blocking is True:
-                        blocking_info = {action_id: True}
+                        blocking_info[action_id].update({'joint_position': True})
                     else:
-                        blocking_info = {action_id: False}
-                    action_info[action_id] = {'joint_position': action_value}
-                    joints_angle = {action_id: action_value}
-                    action_info[action_id] = {
-                        'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]}
+                        blocking_info[action_id].update({'joint_position': False})
+                    if isinstance(action_value[0], list):
+                        new_action_value = action_value[-1]
+                    else:
+                        new_action_value = action_value
+                    action_info[action_id].update({'joint_position': new_action_value})
+                    joints_angle = {action_id: new_action_value}
+                    action_info[action_id].update({'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]})
                 if action_space_id == 'gripper_position':
                     if blocking is True:
-                        blocking_info[action_id] = {'gripper_position': True}
-                    action_info[action_id] = {'gripper_position': action_value}
-        print(action)
-        print(blocking_info)
+                        blocking_info[action_id].update({'gripper_position': True})
+                    action_info[action_id].update({'gripper_position': action_value})
         self.robots.set_robot_state(action, blocking_info)
         return action_info
 
@@ -74,10 +77,7 @@ class RobotEnv(gym.Env):
         pass
 
     def get_observation(self):
-        observation = {}
-        observation.update(self.robots.get_robot_state())
-        # observation.update(self.cameras.read_camera())
-        return observation
+        return self.robots.get_robot_state(), self.cameras.read_camera()
 
     def collect_data(self):
         pass

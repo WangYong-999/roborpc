@@ -31,13 +31,9 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
 
     def _parse_example(episode_path):
         h5_filepath = os.path.join(episode_path, 'trajectory.h5')
-        recording_folderpath = os.path.join(episode_path, 'recordings', 'MP4')
 
         try:
-            if save_data_mode == "H5_FULL":
-                data = load_trajectory(h5_filepath)
-            else:
-                data = load_trajectory(h5_filepath, recording_folderpath=recording_folderpath)
+            data = load_trajectory(h5_filepath)
         except:
             print(f"Skipping trajectory because data couldn't be loaded for {episode_path}.")
             return None
@@ -69,7 +65,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
                         'exterior_image_2_left': obs['image'][f'{exterior_ids[1]}_left'][..., ::-1],
                         # 'wrist_image_left': obs['image'][f'{wrist_ids[0]}_left'][..., ::-1],
                         'cartesian_position': obs['robot_state']['cartesian_position'],
-                        'joint_position': obs['robot_state']["joint_position],
+                        'joint_position': obs['robot_state']["joint_position"],
                         'gripper_position': np.array([obs['robot_state']['gripper_position']]),
                     },
                     'action_dict': {
@@ -97,7 +93,6 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
             'steps': episode,
             'episode_metadata': {
                 'file_path': h5_filepath,
-                'recording_folderpath': recording_folderpath
             }
         }
         # if you want to skip an example for whatever reason, simply return None
@@ -108,7 +103,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
         yield _parse_example(sample)
 
 
-class Droid(MultiThreadedDatasetBuilder):
+class MRCTaskDataset(MultiThreadedDatasetBuilder):
     """DatasetBuilder for example dataset."""
 
     VERSION = tfds.core.Version('1.0.0')
@@ -240,11 +235,7 @@ class Droid(MultiThreadedDatasetBuilder):
         # add more elements to the dict below if you have more splits in your data
         print("Crawling all episode paths...")
         episode_paths = crawler(DATA_PATH)
-        if save_data_mode == "H5_SVO":
-            episode_paths = [p for p in episode_paths if os.path.exists(p + '/trajectory.h5') and \
-                             os.path.exists(p + '/recordings/MP4')]
-        else:
-            episode_paths = [p for p in episode_paths if os.path.exists(p + '/trajectory.h5')]
+        episode_paths = [p for p in episode_paths if os.path.exists(p + '/trajectory.h5')]
         print(f"Found {len(episode_paths)} episodes!")
         return {
             'train': episode_paths,

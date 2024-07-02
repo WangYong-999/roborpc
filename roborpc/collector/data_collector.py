@@ -25,12 +25,6 @@ class DataCollector:
         self.traj_running = False
         self.traj_saved = False
         self.obs_pointer = {}
-        self.robot_type = config["roborpc"]["robots"]["robot_type"]
-        self.robot_serial_number = config["roborpc"]["robots"]["robot_serial_number"]
-
-        # Get Camera Info #
-        self.cam_ids = env.camera.get_device_ids()
-        self.cam_ids.sort()
 
         self.success_logdir = os.path.join(data_dir, "success", str(date.today()))
         self.failure_logdir = os.path.join(data_dir, "failure", str(date.today()))
@@ -44,16 +38,14 @@ class DataCollector:
     def collect_trajectory(self, info=None, practice=False, reset_robot=True, random_reset=False):
         self.last_traj_name = time.asctime().replace(" ", "_")
 
-        if info is None:
-            info = {}
-        info["time"] = self.last_traj_name
+        info_time = self.last_traj_name
 
         if practice:
             save_filepath = None
             recording_folder_path = None
         else:
-            save_filepath = os.path.join(self.failure_logdir, info["time"], "trajectory.h5")
-            recording_folder_path = os.path.join(self.failure_logdir, info["time"], "recordings")
+            save_filepath = os.path.join(self.failure_logdir, info_time, "trajectory.h5")
+            recording_folder_path = os.path.join(self.failure_logdir, info_time)
             if not os.path.isdir(recording_folder_path):
                 os.makedirs(recording_folder_path)
 
@@ -63,7 +55,7 @@ class DataCollector:
             self.env,
             hdf5_file=save_filepath,
             horizon=self.horizon,
-            metadata=info,
+            metadata=None,
             random_reset=random_reset,
             reset_robot=reset_robot,
         )
@@ -71,11 +63,15 @@ class DataCollector:
         self.obs_pointer = {}
 
         # Sort Trajectory #
-        self.traj_saved = controller_info["success"] and (save_filepath is not None)
+        controller_success = False
+        for controller_id, info in controller_info.items():
+            if info.get("success", True):
+                controller_success = True
+        self.traj_saved = controller_success and (save_filepath is not None)
 
         if self.traj_saved:
-            self.last_traj_path = os.path.join(self.success_logdir, info["time"])
-            os.rename(os.path.join(self.failure_logdir, info["time"]), self.last_traj_path)
-
-        return controller_info["success"]
+            self.last_traj_path = os.path.join(self.success_logdir, info_time)
+            os.rename(os.path.join(self.failure_logdir, info_time), self.last_traj_path)
+            logger.success("Trajectory saved to: {}".format(self.last_traj_path))
+        return controller_success
 

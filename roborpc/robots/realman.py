@@ -21,6 +21,8 @@ class RealMan(RobotBase):
 
     def __init__(self, robot_id: str, ip_address: str):
         super().__init__()
+        self._joints_target = None
+        self._gripper_target = None
         self.robot_id = robot_id
         self.ip_address = ip_address
         self.robot: Optional[DriverRealman] = None
@@ -33,7 +35,6 @@ class RealMan(RobotBase):
         self.robot_arm_dof = config["roborpc"]["robots"]["realman"][self.robot_id]["robot_arm_dof"]
         self.robot_gripper_dof = config["roborpc"]["robots"]["realman"][self.robot_id]["robot_gripper_dof"]
         self.last_arm_state = [0.0] * self.robot_arm_dof
-
         logger.info("Connect to RealMan Robot.")
 
     def disconnect_now(self):
@@ -42,50 +43,53 @@ class RealMan(RobotBase):
     def get_robot_ids(self) -> List[str]:
         pass
 
-    async def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
-                              blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
+                        blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         for action_space, action in state.items():
             if action_space == "joint_position":
+                start_time = time.time()
                 self.robot.move_joints_radian_trajectory(np.array(action))
-            elif action_space == "gripper_position":
+                # logger.info(f"Move joints to {action} in {time.time() - start_time} seconds.")
+            # TODO: gripper bug
+            elif action_space == "gripper_position" and action[0] < 0.9:
                 self.robot.set_gripper_opening(action[0])
             elif action_space == "cartesian_position":
                 self.robot.move_cartesian_pose_trajectory(np.array([action]))
 
-    async def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
-                          action_space: Union[str, List[str]] = "cartesian_position",
-                          blocking: Union[bool, List[bool]] = False):
+    def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
+                    action_space: Union[str, List[str]] = "cartesian_position",
+                    blocking: Union[bool, List[bool]] = False):
         self.robot.move_cartesian_pose_trajectory(np.array([action]))
 
-    async def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
-                         action_space: Union[str, List[str]] = "joint_position",
-                         blocking: Union[bool, List[bool]] = False):
+    def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
+                   action_space: Union[str, List[str]] = "joint_position",
+                   blocking: Union[bool, List[bool]] = False):
         self.robot.move_joints_radian_trajectory(np.array([action]))
 
-    async def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
-                          action_space: Union[str, List[str]] = "gripper_position",
-                          blocking: Union[bool, List[bool]] = False):
+    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
+                    action_space: Union[str, List[str]] = "gripper_position",
+                    blocking: Union[bool, List[bool]] = False):
         self.robot.set_gripper_opening(action[0])
 
-    async def get_robot_state(self) -> Dict[str, List[float]]:
-        robot_state = {"joint_position": await self.get_joint_positions(),
-                       "gripper_position": await self.get_gripper_position(),
-                       "ee_pose": await self.get_ee_pose()}
+    def get_robot_state(self) -> Dict[str, List[float]]:
+        robot_state = {"joint_position": self.get_joint_positions(),
+                       "gripper_position": self.get_gripper_position(),
+                       "ee_pose": self.get_ee_pose()}
         return robot_state
 
-    async def get_dofs(self) -> Union[int, Dict[str, int]]:
+    def get_dofs(self) -> Union[int, Dict[str, int]]:
         return self.robot_arm_dof
 
-    async def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
         return list(self.robot.get_joints_radian())
 
-    async def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         return [self.robot.get_gripper_opening()]
 
-    async def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         pass
 
-    async def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         return list(self.robot.get_end_effector_pose())
 
 

@@ -1,4 +1,4 @@
-from typing import Union, cast
+from typing import Union, cast, Dict, List
 
 import numpy as np
 import numpy.typing as npt
@@ -147,3 +147,31 @@ class Bezier:
             curve = np.append(curve, [Bezier.point(t, points)], axis=0)
         curve = np.delete(curve, 0, 0)
         return curve
+
+
+def action_linear_interpolation(start_action: Dict[str, Dict[str, List[float]]],
+                         end_action: Dict[str, Dict[str, List[float]]]) -> Dict[str, Dict[str, List[float]]]:
+    """Linear interpolation between two points.
+
+    Args:
+        start_action: Start position.
+        end_action: End position.
+
+
+    Returns:
+        A list of interpolated points.
+    """
+    interpolated_action = {}
+    for robot_name, action_space_and_values in start_action.items():
+        interpolated_action[robot_name] = {}
+        for action_space_name, values in action_space_and_values.items():
+            if action_space_name == 'joint_position':
+                start_value = values
+                end_value = end_action[robot_name][action_space_name]
+                n_steps = np.ceil(np.abs(np.rad2deg(start_value) - np.rad2deg(end_value)))
+                n_step = int(np.max(n_steps))
+                interpolated_action[robot_name].update({action_space_name: np.linspace(start_value, end_value, n_step + 1)[1:].tolist()})
+            elif action_space_name == 'gripper_position':
+                interpolated_action[robot_name].update({action_space_name: end_action[robot_name][action_space_name]})
+    return interpolated_action
+

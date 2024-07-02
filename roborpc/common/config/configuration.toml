@@ -85,7 +85,7 @@ sever_rpc_ports = ['']
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.
 [roborpc.collector.data_collector]
-save_data_dir = "/home/eai/Log/droid/data/"
+save_data_dir = "/media/jz08/SSD1/Log/droid/data/"
 action_space = "joint_position"
 gripper_action_space = "gripper_position"
 use_one_side_camera = false # olny record left camera

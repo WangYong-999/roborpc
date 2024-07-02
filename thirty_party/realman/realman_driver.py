@@ -2,6 +2,7 @@ import ast
 import json
 import math
 import socket
+import threading
 import time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -15,6 +16,7 @@ class DriverRealman:
         """The initialization of Realman arm driver.
         """
 
+        self._joints_target = None
         arm_velocity = 50  # Percentage of the Realman max speed.
         device_ip = "192.168.1.18"
         device_port = 8080

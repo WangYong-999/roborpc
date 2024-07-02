@@ -28,6 +28,8 @@ class DynamixelController(ControllerBase):
         self.key_button = False
         self.button_A_pressed = False
         self.button_B_pressed = False
+        self.arm_dof = None
+        self.gripper_dof = None
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
         result = self.robot.connect_now()
@@ -64,9 +66,9 @@ class DynamixelController(ControllerBase):
     def on_release(self, key):
         try:
             if key == Key.scroll_lock:
-                self.button_A_pressed = True
+                self.button_A_pressed = False
             if key == Key.pause:
-                self.button_B_pressed = True
+                self.button_B_pressed = False
         except AttributeError:
             logger.error(f"Unknown key {key}")
 
@@ -105,8 +107,6 @@ class DynamixelController(ControllerBase):
             self.state["controller_on"] = True
             last_read_time = time.time()
 
-            self.button_A_pressed = False
-            self.button_B_pressed = False
 
     def process_reading(self):
         gello_joints = np.asarray(self.state["gello_joints"][self.controller_id])
@@ -120,6 +120,8 @@ class DynamixelController(ControllerBase):
 
         obs_joints = state_dict["joint_position"]
         obs_gripper = state_dict["gripper_position"]
+        self.arm_dof = len(obs_joints)
+        self.gripper_dof = len(obs_gripper)
         if type(obs_gripper) == list:
             obs_gripper_new = obs_gripper[0]
         else:
@@ -193,4 +195,5 @@ class DynamixelController(ControllerBase):
     def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
         if not self.goto_start_pos:
             self.go_start_joints(obs_dict)
-        return {"joint_position": self.calculate_action().tolist()}
+        return {"joint_position": self.calculate_action()[:self.arm_dof].tolist(),
+                "gripper_position": self.calculate_action()[self.arm_dof:self.gripper_dof+self.arm_dof].tolist()}

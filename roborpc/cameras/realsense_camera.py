@@ -79,7 +79,7 @@ class RealSenseCamera(CameraBase):
         image = color_image[:, :, ::-1]
         depth = depth_image
         camera_info = {
-            "color": rgb_to_base64(image, quality=10),
-            "depth": depth_to_base64(depth, quality=10)
+            "color": rgb_to_base64(image, quality=100),
+            "depth": depth_to_base64(depth, quality=100)
         }
         return camera_info

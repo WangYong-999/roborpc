@@ -10,7 +10,9 @@ import numpy as np
 from PIL import Image
 import h5py
 
+from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
+from roborpc.kinematics_solver.trajectory_interpolation import action_linear_interpolation
 from roborpc.robot_env import RobotEnv
 
 
@@ -23,7 +25,7 @@ def collect_trajectory(
         reset_robot: bool = True,
 ):
     traj_writer = None
-    controller = env.controller
+    controller = env.controllers
     if hdf5_file:
         traj_writer = TrajectoryWriter(hdf5_file, metadata=metadata)
 
@@ -35,15 +37,14 @@ def collect_trajectory(
     logger.info("press button to move arm!")
     while True:
         controller_info = {} if (controller is None) else controller.get_info()
-        skip_action = not controller_info["movement_enabled"]
         control_timestamps = {"step_start": time.time_ns() / 1_000_000}
 
-        obs = env.get_observation()
-        obs["controller_info"] = controller_info
-        obs["timestamp"]["skip_action"] = skip_action
+        robot_obs, camera_obs = env.get_observation()
+        visualize_timestep(camera_obs)
+        timestep = {"observation": camera_obs, "action": {}}
 
         control_timestamps["policy_start"] = time.time_ns() / 1_000_000
-        action = controller.forward(obs)
+        action = controller.forward(robot_obs)
 
         control_timestamps["sleep_start"] = time.time_ns() / 1_000_000
         comp_time = time.time_ns() / 1_000_000 - control_timestamps["step_start"]
@@ -52,78 +53,72 @@ def collect_trajectory(
             time.sleep(sleep_left)
 
         control_timestamps["control_start"] = time.time_ns() / 1_000_000
-        if skip_action:
-            logger.info(f"skip action: {action}")
-            action_info = env.create_action_dict(np.zeros_like(action), action_space=env.action_space)
-        else:
-            logger.info(f"action: {action}")
-            action_info = env.step(action)
+        logger.info(f"action: {action}")
+        action_info = env.step(action_linear_interpolation(robot_obs, action))
+        logger.info(f"action_info: {action_info}")
 
         control_timestamps["step_end"] = time.time_ns() / 1_000_000
-        obs["timestamp"]["control"] = control_timestamps
-        timestep = {"observation": obs, "action": action_info}
+        robot_obs["timestamp"] = {"control": control_timestamps}
+        timestep["observation"].update(robot_obs)
+        timestep["action"].update(action_info)
         if hdf5_file:
             traj_writer.write_timestep(timestep)
 
         num_steps += 1
+        end_traj = False
         if horizon is not None:
             end_traj = horizon == num_steps
         else:
-            end_traj = controller_info["success"] or controller_info["failure"]
-
+            for controller_id, info in controller_info.items():
+                if info.get("success", False) or info.get("failure", False):
+                    end_traj = True
         if end_traj:
+            logger.info("Trajectory ended.")
             if hdf5_file:
-                traj_writer.close(metadata=controller_info)
+                traj_writer.close()
             return controller_info
 
 
-def replay_trajectory(env: RobotEnv, hdf5_filepath: str, read_color: bool = True, read_depth: bool = True):
+def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
+                      read_color: bool = True,
+                      read_depth: bool = True,
+                      max_width: Optional[int] = 1000,
+                      max_height: Optional[int] = 500,
+                      aspect_ratio: Optional[float] = 1.5
+                      ):
 
     traj_reader = TrajectoryReader(hdf5_filepath, read_color=read_color, read_depth=read_depth)
     horizon = traj_reader.length()
 
+    camera_ids = [item for sublist in config['roborpc']['cameras']['camera_ids'] for item in sublist]
+    robot_ids = [item for sublist in config['roborpc']['robots']['robot_ids'] for item in sublist]
     for i in range(horizon):
         timestep = traj_reader.read_timestep()
-
-        if i == 0:
-            init_joint_position = timestep["observation"]["robot_state"]["joint_position"]
-            init_gripper_position = timestep["observation"]["robot_state"]["gripper_position"]
-            action = np.concatenate([init_joint_position, [init_gripper_position]])
-            env.update_robot(action, action_space="joint_position", blocking=True)
-
-        time.sleep(1 / env.control_hz)
-
-        arm_action = timestep["action"][env.action_space]
-        gripper_action = timestep["action"][env.gripper_action_space]
-        action = np.concatenate([arm_action, [gripper_action]])
-        controller_info = timestep["observation"]["controller_info"]
-        movement_enabled = controller_info.get("movement_enabled", True)
-
-        if movement_enabled:
-            env.step(action)
+        time.sleep(1 / env.env_update_rate)
+        robot_obs = {}
+        camera_obs = {}
+        for key in timestep["observation"]:
+            if key in camera_ids:
+                camera_obs[key] = timestep["observation"][key]
+            if key in robot_ids:
+                robot_obs[key] = timestep["observation"][key]
+        if camera_obs is not None:
+            visualize_timestep(
+                camera_obs, max_width=max_width, max_height=max_height, aspect_ratio=aspect_ratio, pause_time=15
+            )
+        print(f"action: {timestep['action']}")
+        print(f"robot_obs: {robot_obs}")
+        env.step(action_linear_interpolation(robot_obs, timestep["action"]))
 
 
-def visualize_timestep(timestep: Dict,
+def visualize_timestep(camera_obs: Dict,
                        max_width: int = 1000,
                        max_height: int = 500,
                        aspect_ratio: float = 1.5,
                        pause_time: int = 15):
-    obs = timestep["observation"]
-    if "color" in obs:
-        img_obs = obs["color"]
-    elif "color" in obs["camera"]:
-        img_obs = obs["camera"]["color"]
-    else:
-        raise ValueError
-
-    camera_ids = sorted(img_obs.keys())
     sorted_image_list = []
-    for cam_id in camera_ids:
-        data = img_obs[cam_id]
-        if type(data) == list:
-            sorted_image_list.extend(data)
-        else:
-            sorted_image_list.append(data)
+    for camera_id, obs in camera_obs.items():
+        sorted_image_list.append(obs['color'])
 
     num_images = len(sorted_image_list)
     max_num_rows = int(num_images ** 0.5)
@@ -163,13 +158,19 @@ def visualize_trajectory(
 
     horizon = traj_reader.length()
 
+    camera_ids = [item for sublist in config['roborpc']['cameras']['camera_ids'] for item in sublist]
     for i in range(horizon):
         timestep = traj_reader.read_timestep()
-        if not timestep["observation"]["controller_info"].get("movement_enabled", True):
-            continue
-        visualize_timestep(
-            timestep, max_width=max_width, max_height=max_height, aspect_ratio=aspect_ratio, pause_time=15
-        )
+        # if not timestep["observation"]["controller_info"].get("movement_enabled", True):
+        #     continue
+        camera_obs = {}
+        for key in timestep["observation"]:
+            if key in camera_ids:
+                camera_obs[key] = timestep["observation"][key]
+        if camera_obs is not None:
+            visualize_timestep(
+                camera_obs, max_width=max_width, max_height=max_height, aspect_ratio=aspect_ratio, pause_time=15
+            )
     traj_reader.close()
 
 
@@ -177,7 +178,7 @@ class TrajectoryReader:
     def __init__(self, hdf5_filepath: str, read_color: bool = True, read_depth: bool = True):
         self._hdf5_file = h5py.File(hdf5_filepath, "r")
         self._keys_to_ignore = []
-        if read_color:
+        if not read_color:
             self._keys_to_ignore.append("color")
         if not read_depth:
             self._keys_to_ignore.append("depth")
@@ -203,6 +204,8 @@ class TrajectoryReader:
 
             if length is None:
                 length = curr_length
+            print(f"{key}: {curr_length}")
+            print(f"length: {length}")
             assert curr_length == length
         return length
 
@@ -273,7 +276,7 @@ class TrajectoryWriter:
                 if dtype == dict:
                     if key not in hdf5_file:
                         hdf5_file.create_group(key)
-                    self.write_dict_to_hdf5(hdf5_file[key], curr_data, keys_to_ignore)
+                    self.write_dict_to_hdf5(hdf5_file[key], curr_data)
                     continue
 
                 if key not in hdf5_file:
@@ -313,8 +316,7 @@ class TrajectoryWriter:
             while not queue.empty():
                 logger.info(f"Waiting cache data {queue.qsize()} join....")
                 time.sleep(1)
-
-        self._hdf5_file.close()
+        time.sleep(2)
         self._open = False
+        self._hdf5_file.close()
 
-        logger.success(f"Trajectory saved to {self._filepath}")

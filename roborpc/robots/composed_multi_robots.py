@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Union, List, Dict
 
 import zerorpc
@@ -104,6 +105,7 @@ class ComposedMultiRobots(RobotBase):
             for robot_id in multi_robots.get_robot_ids():
                 new_state.update({robot_id: state[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
+            start_time = time.time()
             multi_robots.set_robot_state(new_state, new_blocking)
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],

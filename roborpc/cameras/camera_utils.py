@@ -114,7 +114,7 @@ def calibrate_camera(
     return True
 
 
-def rgb_to_base64(rgb, size=None, quality=10):
+def rgb_to_base64(rgb, size=None, quality=100):
     height, width = rgb.shape[0], rgb.shape[1]
     if size is not None:
         new_height, new_width = size, int(size * float(width) / height)
@@ -128,7 +128,7 @@ def rgb_to_base64(rgb, size=None, quality=10):
     return base64.b64encode(rgb_data).decode("utf-8")
 
 
-def depth_to_base64(depth, size=None, quality=10):
+def depth_to_base64(depth, size=None, quality=100):
     height, width = depth.shape[0], depth.shape[1]
     if size is not None:
         new_height, new_width = size, int(size * float(width) / height)
@@ -149,8 +149,8 @@ def base64_rgb(isaac_sim_rgb):
     rgb_bytes = base64.b64decode(isaac_sim_rgb)
     rgb_np = np.frombuffer(rgb_bytes, dtype=np.uint8)
     rgb = cv2.imdecode(rgb_np, cv2.IMREAD_COLOR)
-    rgb_list = np.array(rgb).tolist()
-    return rgb_list
+    rgb_np = np.array(rgb)
+    return rgb_np
 
 
 def base64_depth(isaac_sim_depth):
@@ -164,7 +164,7 @@ def base64_depth(isaac_sim_depth):
     #     depth_imgs.append(depth_scaled + float(depth["depthMin"]))
     # src_depth = np.array(depth_imgs[0])
     # cur_depth = np.array(depth_imgs[1])
-    depth_list = np.array(depth_unscaled).tolist()
-    return depth_list
+    depth_np = np.array(depth_unscaled)
+    return depth_np
 
 
