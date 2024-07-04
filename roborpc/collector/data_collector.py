@@ -67,7 +67,7 @@ class DataCollector:
         for controller_id, info in controller_info.items():
             if info.get("success", True):
                 controller_success = True
-        self.traj_saved = controller_success and (save_filepath is not None)
+        self.traj_saved = (self.horizon is not None or controller_success) and (save_filepath is not None)
 
         if self.traj_saved:
             self.last_traj_path = os.path.join(self.success_logdir, info_time)
