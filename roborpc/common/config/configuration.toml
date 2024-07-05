@@ -1,6 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 30
-use_controller = false
+use_controller = true
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -47,20 +47,20 @@ robot_arm_dof = 7
 robot_gripper_dof = 1
 
 [roborpc.robots.dynamixel.dynamixel_controller_left_arm]
-start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+start_joints = [-3.141592653589793, 0.0, 0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
 joint_signs = [1, -1, 1, -1, 1, 1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
-joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 4.71238898038469, 6.283185307179586, 3.141592653589793, 3.141592653589793]
-gripper_config = [7, 133, 175]
+joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
+gripper_config = [7, 350, 308]
 baudrate = 1000000
 
 ######### Camera Configuration #########
 # This section defines the camera configuration for the robots.
 [roborpc.cameras]
 # ON or OFF
-camera_ids = [['realsense_camera_1']]
+camera_ids = [['realsense_camera_1', 'realsense_camera_2']]
 server_ips_address = ['127.0.0.1']
 server_rpc_ports = ['']
 
@@ -105,7 +105,7 @@ use_zed_save_mp4 = false # for H5_MP4
 save_audio = false
 max_timesteps = 0 # 0 (not used) 1000
 dt = 0.02 # act used
-horizon = 50 # 0 for not used
+horizon = 80 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 

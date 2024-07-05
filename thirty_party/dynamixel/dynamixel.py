@@ -42,6 +42,7 @@ class DynamixelRobot:
             self.gripper_open_close = None
 
         self._joint_ids = joint_ids
+        print(f"self._joint_ids:{self._joint_ids}")
         self._driver: DynamixelDriverProtocol
 
         if joint_offsets is None:

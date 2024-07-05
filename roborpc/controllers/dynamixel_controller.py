@@ -146,7 +146,7 @@ class DynamixelController(ControllerBase):
                 )
             return
 
-        logger.info(f"Start pos: {len(start_pos)}", f"Joints: {len(obs_pos)}")
+        logger.info(f"Start pos: {len(start_pos)}, Joints: {len(obs_pos)}")
         assert len(start_pos) == len(
             obs_pos
         ), f"agent output dim = {len(start_pos)}, but env dim = {len(obs_pos)}"

@@ -9,14 +9,14 @@ from roborpc.collector.data_collector import DataCollector
 
 if __name__ == '__main__':
     try:
-        camera_1_pid = subprocess.Popen(
-            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py'
-            ' --rpc_port 4247 --camera_ids realsense_camera_1"',
-            shell=True)
-        camera_2_pid = subprocess.Popen(
-            'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py'
-            ' --rpc_port 4248 --camera_ids realsense_camera_2"',
-            shell=True)
+        # camera_1_pid = subprocess.Popen(
+        #     'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py'
+        #     ' --rpc_port 4247 --camera_ids realsense_camera_1"',
+        #     shell=True)
+        # camera_2_pid = subprocess.Popen(
+        #     'bash -c "python /home/jz08/code_repo/roborpc/roborpc/cameras/multi_cameras.py'
+        #     ' --rpc_port 4248 --camera_ids realsense_camera_2"',
+        #     shell=True)
         camera = ComposedMultiCameras()
         camera.connect_now()
         print(camera.get_camera_intrinsics())

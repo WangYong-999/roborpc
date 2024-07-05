@@ -1,16 +1,20 @@
 import os
+import threading
 import time
 from datetime import date
+from typing import Optional, Dict
 
+from roborpc.collector.data_collector_utils import TrajectoryWriter, visualize_timestep_loop, visualize_timestep
 from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
-from roborpc.collector.data_collector_utils import collect_trajectory
+from roborpc.kinematics_solver.trajectory_interpolation import action_linear_interpolation
 
 from roborpc.robot_env import RobotEnv
 
 
 class DataCollector:
     def __init__(self, env: RobotEnv):
+        self.camera_obs = None
         self.last_traj_name = None
         self.env = env
 
@@ -51,8 +55,7 @@ class DataCollector:
 
         # Collect Trajectory #
         self.traj_running = True
-        controller_info = collect_trajectory(
-            self.env,
+        controller_info = self.collect_one_trajectory(
             hdf5_file=save_filepath,
             horizon=self.horizon,
             metadata=None,
@@ -67,11 +70,89 @@ class DataCollector:
         for controller_id, info in controller_info.items():
             if info.get("success", True):
                 controller_success = True
-        self.traj_saved = (self.horizon is not None or controller_success) and (save_filepath is not None)
+
+        if self.horizon is not None:
+            logger.info("press A button to save")
+            while True:
+                controller_info = self.env.controllers.get_info()
+                controller_success = None
+                for controller_id, info in controller_info.items():
+                    if info["success"]:
+                        print(f"controller {controller_id} success")
+                        controller_success = True
+                    if info["failure"]:
+                        controller_success = False
+                if controller_success is not None:
+                    break
+        self.traj_saved = controller_success and save_filepath is not None
 
         if self.traj_saved:
             self.last_traj_path = os.path.join(self.success_logdir, info_time)
             os.rename(os.path.join(self.failure_logdir, info_time), self.last_traj_path)
             logger.success("Trajectory saved to: {}".format(self.last_traj_path))
+        else:
+            logger.success("Trajectory saved to: {}".format(save_filepath))
         return controller_success
 
+    def collect_one_trajectory(
+            self,
+            horizon: Optional[int] = None,
+            hdf5_file: Optional[str] = None,
+            metadata: Optional[Dict] = None,
+            random_reset: bool = False,
+            reset_robot: bool = True,
+    ):
+        traj_writer = None
+        controller = self.env.controllers
+        if hdf5_file:
+            traj_writer = TrajectoryWriter(hdf5_file, metadata=metadata)
+
+        num_steps = 0
+        if reset_robot:
+            self.env.reset(random_reset=random_reset)
+        threading.Thread(target=visualize_timestep_loop, args=(self.camera_obs,)).start()
+
+        # Begin! #
+        logger.info("press button to move arm!")
+        while True:
+            controller_info = {} if (controller is None) else controller.get_info()
+            control_timestamps = {"step_start": time.time_ns() / 1_000_000}
+
+            robot_obs, self.camera_obs = self.env.get_observation()
+            visualize_timestep(self.camera_obs)
+            timestep = {"observation": self.camera_obs, "action": {}}
+
+            control_timestamps["policy_start"] = time.time_ns() / 1_000_000
+            action = controller.forward(robot_obs)
+
+            control_timestamps["sleep_start"] = time.time_ns() / 1_000_000
+            comp_time = time.time_ns() / 1_000_000 - control_timestamps["step_start"]
+            sleep_left = (1 / self.env.env_update_rate) - (comp_time / 1000)
+            if sleep_left > 0:
+                time.sleep(sleep_left)
+
+            control_timestamps["control_start"] = time.time_ns() / 1_000_000
+            logger.info(f"action: {action}")
+            action_info = self.env.step(action_linear_interpolation(robot_obs, action))
+            logger.info(f"action_info: {action_info}")
+
+            control_timestamps["step_end"] = time.time_ns() / 1_000_000
+            robot_obs["timestamp"] = {"control": control_timestamps}
+            timestep["observation"].update(robot_obs)
+            timestep["action"].update(action_info)
+            if hdf5_file:
+                traj_writer.write_timestep(timestep)
+
+            num_steps += 1
+            end_traj = False
+            if horizon is not None:
+                end_traj = horizon == num_steps
+            else:
+                for controller_id, info in controller_info.items():
+                    if info.get("success", True) or info.get("failure", True):
+                        end_traj = True
+            if end_traj:
+                logger.info("Trajectory ended.")
+                if hdf5_file:
+                    traj_writer.close()
+                return controller_info

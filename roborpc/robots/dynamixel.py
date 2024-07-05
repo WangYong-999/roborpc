@@ -70,6 +70,7 @@ class Dynamixel(RobotBase):
         ), f"joint_signs: {self._joint_signs}"
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
+        print(f"self._joint_ids: {self._joint_ids}")
         self._driver = DynamixelDriver(self._joint_ids, port=self.port, baudrate=self.baudrate)
         self._driver.set_torque_mode(False)
 
@@ -137,7 +138,6 @@ class Dynamixel(RobotBase):
             # exponential smoothing
             pos = self._last_pos * (1 - self._alpha) + pos * self._alpha
             self._last_pos = pos
-
         robot_states = {
             # "cartesian_position": end_effector_world_pose,
             "gripper_position": list(pos[-1:]),

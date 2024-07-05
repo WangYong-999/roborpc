@@ -16,69 +16,6 @@ from roborpc.kinematics_solver.trajectory_interpolation import action_linear_int
 from roborpc.robot_env import RobotEnv
 
 
-def collect_trajectory(
-        env: RobotEnv,
-        horizon: Optional[int] = None,
-        hdf5_file: Optional[str] = None,
-        metadata: Optional[Dict] = None,
-        random_reset: bool = False,
-        reset_robot: bool = True,
-):
-    traj_writer = None
-    controller = env.controllers
-    if hdf5_file:
-        traj_writer = TrajectoryWriter(hdf5_file, metadata=metadata)
-
-    num_steps = 0
-    if reset_robot:
-        env.reset(random_reset=random_reset)
-
-    # Begin! #
-    logger.info("press button to move arm!")
-    while True:
-        controller_info = {} if (controller is None) else controller.get_info()
-        control_timestamps = {"step_start": time.time_ns() / 1_000_000}
-
-        robot_obs, camera_obs = env.get_observation()
-        visualize_timestep(camera_obs)
-        timestep = {"observation": camera_obs, "action": {}}
-
-        control_timestamps["policy_start"] = time.time_ns() / 1_000_000
-        action = controller.forward(robot_obs)
-
-        control_timestamps["sleep_start"] = time.time_ns() / 1_000_000
-        comp_time = time.time_ns() / 1_000_000 - control_timestamps["step_start"]
-        sleep_left = (1 / env.env_update_rate) - (comp_time / 1000)
-        if sleep_left > 0:
-            time.sleep(sleep_left)
-
-        control_timestamps["control_start"] = time.time_ns() / 1_000_000
-        logger.info(f"action: {action}")
-        action_info = env.step(action_linear_interpolation(robot_obs, action))
-        logger.info(f"action_info: {action_info}")
-
-        control_timestamps["step_end"] = time.time_ns() / 1_000_000
-        robot_obs["timestamp"] = {"control": control_timestamps}
-        timestep["observation"].update(robot_obs)
-        timestep["action"].update(action_info)
-        if hdf5_file:
-            traj_writer.write_timestep(timestep)
-
-        num_steps += 1
-        end_traj = False
-        if horizon is not None:
-            end_traj = horizon == num_steps
-        else:
-            for controller_id, info in controller_info.items():
-                if info.get("success", False) or info.get("failure", False):
-                    end_traj = True
-        if end_traj:
-            logger.info("Trajectory ended.")
-            if hdf5_file:
-                traj_writer.close()
-            return controller_info
-
-
 def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
                       read_color: bool = True,
                       read_depth: bool = True,
@@ -86,7 +23,6 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
                       max_height: Optional[int] = 500,
                       aspect_ratio: Optional[float] = 1.5
                       ):
-
     traj_reader = TrajectoryReader(hdf5_filepath, read_color=read_color, read_depth=read_depth)
     horizon = traj_reader.length()
 
@@ -109,6 +45,16 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
         print(f"action: {timestep['action']}")
         print(f"robot_obs: {robot_obs}")
         env.step(action_linear_interpolation(robot_obs, timestep["action"]))
+
+
+def visualize_timestep_loop(camera_obs: Dict):
+    while camera_obs is not None:
+        try:
+            visualize_timestep(camera_obs)
+        except Exception as e:
+            logger.error(f"Error in visualize_timestep_loop: {e}")
+            cv2.destroyAllWindows()
+            break
 
 
 def visualize_timestep(camera_obs: Dict,
@@ -319,4 +265,3 @@ class TrajectoryWriter:
         time.sleep(2)
         self._open = False
         self._hdf5_file.close()
-

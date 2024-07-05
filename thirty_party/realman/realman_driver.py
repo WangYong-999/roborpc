@@ -47,8 +47,8 @@ class DriverRealman:
         self.socket: Optional[socket.socket] = None
         self._connect()
 
-        self.last_gripper_position = 1.0
-        # self.set_gripper_opening(1.0)
+        self.last_gripper_position = 0.0
+        self.set_gripper_opening(0.0)
 
     @staticmethod
     def _std_m_to_rm_m(
@@ -415,19 +415,19 @@ class DriverRealman:
 
         Args:
             position: The gripper opening amount to be set, in a range of
-                [0.0 (fully closed), 1.0 (fully open)].
+                [1.0 (fully closed), 0.0 (fully open)].
 
         Returns:
             Whether the command is sent.
         """
-        self.last_gripper_position = position
         data = json.dumps({
             'command': 'set_gripper_position',
-            'position': int(position * 1000)
+            'position': int((1.0 - position) * 1000)
         })
         data += '\r\n'
         self._send_msg_with_retry(data, with_ret=False)
         time.sleep(self.gripper_time)
+        self.last_gripper_position = position
         return True
 
     # ----
