@@ -26,20 +26,24 @@ class RobotEnv(gym.Env):
     def _initialize(self):
         self.robots = ComposedMultiRobots()
         self.cameras = ComposedMultiCameras()
-        self.controllers = ComposedMultiController()
         self.robots.connect_now()
         self.cameras.connect_now()
-        self.controllers.connect_now()
 
         self.kinematic_solver = CuroboSolverKinematic()
         self.env_update_rate = config['roborpc']['robot_env']['env_update_rate']
         self.robot_ids = self.robots.get_robot_ids()
         self.camera_ids = self.cameras.get_device_ids()
 
+        self.use_controller = config['roborpc']['robot_env']['use_controller']
+        if self.use_controller:
+            self.controllers = ComposedMultiController()
+            self.controllers.connect_now()
+
     def __del__(self):
         self.robots.disconnect_now()
         self.cameras.disconnect_now()
-        self.controllers.disconnect_now()
+        if self.use_controller:
+            self.controllers.disconnect_now()
 
     def step(self, action: Dict[str, Dict[str, List[float]]],
              blocking: Union[bool, Dict[str, List[bool]]] = False) -> Dict[str, Dict[str, List[float]]]:

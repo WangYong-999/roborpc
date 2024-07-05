@@ -48,7 +48,7 @@ class DriverRealman:
         self._connect()
 
         self.last_gripper_position = 1.0
-        self.set_gripper_opening(1.0)
+        # self.set_gripper_opening(1.0)
 
     @staticmethod
     def _std_m_to_rm_m(
@@ -469,12 +469,12 @@ if __name__ == '__main__':
     print(realman.get_gripper_opening())
 
     print(realman.get_gripper_opening())
-    while True:
-        try:
-            result =realman.reach_joints_radian(np.array([-0.2530378349541379, -0.07663740745507101, 0.08124507668033605,
-                                                          -1.495572636033941, 0.03830997708127553, -1.5692953436381816, -0.17636552091402702]))
-            print(result)
-            break
-        except Exception as e:
-            print(e)
-            break
+    # while True:
+    #     try:
+    #         result =realman.reach_joints_radian(np.array([-0.2530378349541379, -0.07663740745507101, 0.08124507668033605,
+    #                                                       -1.495572636033941, 0.03830997708127553, -1.5692953436381816, -0.17636552091402702]))
+    #         print(result)
+    #         break
+    #     except Exception as e:
+    #         print(e)
+    #         break

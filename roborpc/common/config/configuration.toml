@@ -1,5 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 30
+use_controller = false
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
