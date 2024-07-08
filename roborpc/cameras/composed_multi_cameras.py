@@ -48,7 +48,7 @@ class ComposedMultiCameras(CameraBase):
         server_ips_address = self.camera_config['server_ips_address']
         server_rpc_ports = self.camera_config['server_rpc_ports']
         for server_ip_address, server_rpc_port in zip(server_ips_address, server_rpc_ports):
-            if server_ip_address == "127.0.0.1" or server_rpc_port == "":
+            if server_rpc_port == "":
                 self.composed_multi_cameras[server_ip_address] = MultiCameras()
             else:
                 self.composed_multi_cameras[server_ip_address] = MultiCamerasRpc(server_ip_address, server_rpc_port)

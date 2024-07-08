@@ -9,7 +9,9 @@ robot_cfg:
     ee_link: "ee_link"
     link_names: ["ee_link"]
     robot_names_link_names_pair:
-      - "ee_link": "panda_1"
+      - "panda_1": "ee_link"
+    robot_names_robot_dof_pair:
+      - "panda_1": [0, 7]
     collision_link_names:
       [
         "panda_link0",

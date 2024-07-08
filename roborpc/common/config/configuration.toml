@@ -6,9 +6,9 @@ use_controller = true
 # This section defines the environment configuration for the robots.
 [roborpc.robots]
 # ON or OFF
-robot_ids = [['realman_1']]
-server_ips_address = ['192.168.1.100']
-sever_rpc_ports = ['']
+robot_ids = [['panda_1']]
+server_ips_address = ['127.0.0.1']
+sever_rpc_ports = ['4096']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -47,7 +47,7 @@ robot_arm_dof = 7
 robot_gripper_dof = 1
 
 [roborpc.robots.dynamixel.dynamixel_controller_left_arm]
-start_joints = [-3.141592653589793, 0.0, 0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
 joint_signs = [1, -1, 1, -1, 1, 1, 1]
 gripper = true
@@ -62,7 +62,7 @@ baudrate = 1000000
 # ON or OFF
 camera_ids = [['realsense_camera_1', 'realsense_camera_2']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['']
+server_rpc_ports = ['4096']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
 camera_resolution = [640, 480]
@@ -79,7 +79,7 @@ camera_serial_number = '218622275485'
 [roborpc.controllers]
 # ON or OFF
 controller_ids = [['dynamixel_controller_left_arm']]
-control_robot_ids = [['realman_1']]
+control_robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
 
@@ -164,10 +164,11 @@ focus_distance = 400
 
 
 [roborpc.sim_robots.mujoco]
-robot_ids = [['realman_1']]
+robot_ids = [['panda_1']]
+camera_ids = [['realsense_camera_1']]
 server_ips_address = ['192.168.1.100']
 sever_rpc_ports = ['4096']
-zero_action = [[0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1]]
+zero_action = [[0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]]
 
 ###### Kinematics Solver Configuration #########
 [roborpc.kinematics_solver.curobo_solver_kinematic]

@@ -119,7 +119,8 @@ class DataCollector:
             control_timestamps = {"step_start": time.time_ns() / 1_000_000}
 
             robot_obs, self.camera_obs = self.env.get_observation()
-            visualize_timestep(self.camera_obs)
+            print(f"robot_obs: {robot_obs}")
+            print(f"camera_obs: {self.camera_obs}")
             timestep = {"observation": self.camera_obs, "action": {}}
 
             control_timestamps["policy_start"] = time.time_ns() / 1_000_000

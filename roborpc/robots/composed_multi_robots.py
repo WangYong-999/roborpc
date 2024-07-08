@@ -78,7 +78,7 @@ class ComposedMultiRobots(RobotBase):
         server_ips_address = self.robot_config["server_ips_address"]
         sever_rpc_ports = self.robot_config["sever_rpc_ports"]
         for server_ip_address, sever_rpc_port in zip(server_ips_address, sever_rpc_ports):
-            if server_ip_address == "127.0.0.1" or sever_rpc_port == "":
+            if sever_rpc_port == "":
                 self.composed_multi_robots[server_ip_address] = MultiRobots()
             else:
                 self.composed_multi_robots[server_ip_address] = MutilRobotsRpc(server_ip_address, sever_rpc_port)
@@ -93,19 +93,19 @@ class ComposedMultiRobots(RobotBase):
     def get_robot_ids(self) -> List[str]:
         robot_ids = []
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            print(multi_robots)
+            print(multi_robots.get_robot_ids())
             robot_ids.extend(multi_robots.get_robot_ids())
         return robot_ids
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
-        multi_robots_task = []
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
             new_state = {}
             new_blocking = {}
             for robot_id in multi_robots.get_robot_ids():
                 new_state.update({robot_id: state[robot_id]})
                 new_blocking.update({robot_id: blocking[robot_id]})
-            start_time = time.time()
             multi_robots.set_robot_state(new_state, new_blocking)
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],

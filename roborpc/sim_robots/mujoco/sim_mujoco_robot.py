@@ -6,7 +6,6 @@ from typing import Union, Dict, List
 
 import numpy as np
 
-from roborpc.sim_robots.mujoco.demo_teleop import choose_option
 from roborpc.sim_robots.sim_robot_interface import SimRobotInterface
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
@@ -65,6 +64,9 @@ class SimMujocoRobotRpc(SimRobotInterface):
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         return self.robot.get_ee_pose()
 
+    def get_device_ids(self) -> List[str]:
+        return self.robot.get_device_ids()
+
     def get_camera_intrinsics(self) -> Dict[str, List[float]]:
         return self.robot.get_camera_intrinsics()
 
@@ -88,6 +90,7 @@ class SimMujocoRobot(SimRobotInterface):
         parser.add_argument("--style", type=int, help="kitchen style (choose number 0-11)")
         args = parser.parse_args()
 
+        # kitchen tasks now only support PandaMobile
         tasks = OrderedDict([
             ("PnPCounterToCab", "pick and place from counter to cabinet"),
             ("PnPCounterToSink", "pick and place from counter to sink"),
@@ -107,30 +110,22 @@ class SimMujocoRobot(SimRobotInterface):
 
         self.robot_config = config['roborpc']['sim_robots']['mujoco']
 
-        if args.task is None:
-            args.task = choose_option(tasks, "task", default="PnPCounterToCab", show_keys=True)
-
         self.env = robosuite.make(
-            env_name=args.task,
-            robots="PandaMobile",
-            layout_ids=args.layout,
-            style_ids=args.style,
-            translucent_robot=True,
+            env_name='NutAssemblySquare',
+            robots='Panda',
+            controller_configs=load_controller_config(default_controller='JOINT_POSITION'),
             has_renderer=True,
-            has_offscreen_renderer=False,
-            use_camera_obs=False,
-            use_object_obs=True,
+            has_offscreen_renderer=True,
+            render_camera="agentview",
+            ignore_done=True,
+            use_camera_obs=True,
+            camera_depths=True,
             reward_shaping=True,
             control_freq=20,
-            horizon=1000,
-            ignore_done=True,
-            camera_names="agentview",
-            camera_heights=256,
-            camera_widths=256,
-            camera_depths=False,
-            controller_configs=load_controller_config(default_controller="OSC_POSE"),
+            hard_reset=False,
         )
         self.env = VisualizationWrapper(self.env)
+        self.env.viewer.set_camera(camera_id=0)
         self.env.reset()
         logger.success(f"Mujoco Task: {args.task}, Instruction: {self.env.get_ep_meta().get('lang', None)}")
 
@@ -152,20 +147,32 @@ class SimMujocoRobot(SimRobotInterface):
         self._sim_loop()
 
     def _sim_loop(self):
-        for _ in range(1):
-            self.env.step(np.asarray(self.robot_config['zero_action'][0]))
+        for _ in range(100):
+            self.env.render()
+            self.obs, _, _, _ = self.env.step(np.asarray(self.robot_config['zero_action'][0]),
+                                              set_qpos=self.robot_config['zero_action'][0])
         task_completion_hold_count = -1
+        n_actions = 1000
+        actions = 0.1 * np.random.uniform(low=-1.0, high=1.0, size=(n_actions, self.env.action_spec[0].shape[0]))
+
         while True:
             self.env.render()
-            arm_actions = self.robot_state.get('joint_position', None)
-            gripper_actions = self.robot_state.get('gripper_position', None)
-            base_actions = self.robot_state.get('base_position', np.zeros(3))
-            torso_actions = self.robot_state.get('torso_position', np.zeros(1))
-            mode_action = self.robot_state.get('mode', [-1])
-            self.env.robots[0].enable_parts(base=True, right=True, left=True, torso=True)
-            if arm_actions is not None:
-                action = np.concatenate([arm_actions, gripper_actions, base_actions, torso_actions, mode_action])
-                self.obs, _, _, _ = self.env.step(action)
+            robot = self.robot_state.get('panda_1', None)
+            if robot is None:
+                continue
+            arm_actions = robot.get('joint_position', None)
+            gripper_actions = robot.get('gripper_position', None)
+            # base_actions = self.robot_state.get('base_position', np.zeros(3))
+            # torso_actions = self.robot_state.get('torso_position', np.zeros(1))
+            # mode_action = self.robot_state.get('mode', [-1])
+            # self.env.robots[0].enable_parts(right=True, left=True)
+            if arm_actions is not None and gripper_actions is not None:
+                print("Arm actions: ", arm_actions)
+                print("Gripper actions: ", gripper_actions)
+                grip = 0.04 - 0.04 * gripper_actions[0]
+                normalized_gripper_position = np.asarray([grip])
+                action = np.concatenate([arm_actions, normalized_gripper_position])
+                self.obs, _, _, _ = self.env.step(action, set_qpos=action)
                 if self.env._check_success():
                     if task_completion_hold_count > 0:
                         task_completion_hold_count -= 1
@@ -181,7 +188,7 @@ class SimMujocoRobot(SimRobotInterface):
         self.env.close()
 
     def get_robot_ids(self) -> List[str]:
-        pass
+        return self.robot_config["robot_ids"][0]
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
@@ -191,44 +198,59 @@ class SimMujocoRobot(SimRobotInterface):
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "cartesian_position",
                     blocking: Union[bool, Dict[str, bool]] = False):
-        pass
+        return {}
 
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
                    action_space: Union[str, Dict[str, str]] = "joint_position",
                    blocking: Union[bool, Dict[str, bool]] = False):
-        pass
+        return {}
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, Dict[str, str]] = "gripper_position",
                     blocking: Union[bool, Dict[str, bool]] = False):
-        pass
+        return {}
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        return self.obs
+        normalized_gripper_position = (0.04 - self.obs['robot0_gripper_qpos'][0]) / 0.04
+        obs = {
+            'panda_1':
+                {
+                    "joint_position": self.obs['robot0_joint_pos'].tolist(),
+                    "gripper_position": [normalized_gripper_position],
+                    "ee_pose": np.concatenate([self.obs['robot0_eef_pos'], self.obs['robot0_eef_quat']]).tolist(),
+                }
+        }
+        return obs
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
-        pass
+        return {}
 
     def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
-        pass
+        return {}
 
     def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
-        pass
+        return {}
 
     def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
-        pass
+        return {}
 
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
-        pass
+        return {}
+
+    def get_device_ids(self) -> List[str]:
+        return self.robot_config["camera_ids"]
 
     def get_camera_intrinsics(self) -> Dict[str, List[float]]:
-        pass
+        return {}
 
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
-        pass
+        return {}
 
     def read_camera(self) -> Dict[str, Dict[str, str]]:
-        pass
+        camera_name = 'agentview'
+        image = self.obs["{}_image".format(camera_name)][::-1]
+        depth_map = self.obs["{}_depth".format(camera_name)][::-1]
+        return {camera_name: {"image": image, "depth_map": depth_map}}
 
 
 if __name__ == '__main__':

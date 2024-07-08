@@ -19,12 +19,11 @@ tensor_args = TensorDeviceType()
 
 class CuroboSolverKinematic(KinematicSolverBase):
 
-    def __init__(self):
+    def __init__(self, robot_cfg, world_cfg, robot_path):
         super().__init__()
-        self.ik_config = config['roborpc']['kinematics_solver']['curobo_solver_kinematic']
-        robot_cfg = self.ik_config['robot_cfg']
-        world_cfg = self.ik_config['world_cfg']
-        self.robot_path = self.ik_config['robot_description']
+        robot_cfg = robot_cfg
+        world_cfg = world_cfg
+        self.robot_path = robot_path
 
         self.robot_names_link_names_pair = None
         self.robot_names_robot_dof_pair = None

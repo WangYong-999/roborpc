@@ -54,7 +54,6 @@ class MultiRobots(RobotBase):
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
-        start_time = time.time()
         for robot_id, robot in self.robots.items():
             robot.set_robot_state(state[robot_id], blocking[robot_id])
 
