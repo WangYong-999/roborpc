@@ -109,12 +109,8 @@ horizon = 80 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 
-######### Sim Robot Configuration #########
+######### Isaac Sim Robot Configuration #########
 # This section defines the simulation robot configuration for the robots.
-[roborpc.sim_robots]
-daemon_host=''
-daemon_port=6026
-
 [roborpc.sim_robots.isaac_sim]
 skip_rendering = false
 task_host=''
@@ -166,6 +162,12 @@ projection = 'perspective'
 focal_length = 1.25
 focus_distance = 400
 
+
+[roborpc.sim_robots.mujoco]
+robot_ids = [['realman_1']]
+server_ips_address = ['192.168.1.100']
+sever_rpc_ports = ['4096']
+zero_action = [[0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1]]
 
 ###### Kinematics Solver Configuration #########
 [roborpc.kinematics_solver.curobo_solver_kinematic]
