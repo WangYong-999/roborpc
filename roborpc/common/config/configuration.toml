@@ -47,9 +47,9 @@ robot_arm_dof = 7
 robot_gripper_dof = 1
 
 [roborpc.robots.dynamixel.dynamixel_controller_left_arm]
-start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
-joint_signs = [1, -1, 1, -1, 1, 1, 1]
+joint_signs = [1, 1, 1, -1, 1, 1, 1] # panda: [1, 1, 1, -1, 1, 1, 1], realman: [1, -1, 1, -1, 1, 1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
 joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
@@ -168,7 +168,7 @@ robot_ids = [['panda_1']]
 camera_ids = [['realsense_camera_1']]
 server_ips_address = ['192.168.1.100']
 sever_rpc_ports = ['4096']
-zero_action = [[0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]]
+zero_action = [[0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0]]
 
 ###### Kinematics Solver Configuration #########
 [roborpc.kinematics_solver.curobo_solver_kinematic]

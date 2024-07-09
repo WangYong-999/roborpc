@@ -169,7 +169,8 @@ class SimMujocoRobot(SimRobotInterface):
             if arm_actions is not None and gripper_actions is not None:
                 print("Arm actions: ", arm_actions)
                 print("Gripper actions: ", gripper_actions)
-                grip = 0.04 - 0.04 * gripper_actions[0]
+                # [0, 1] -> [-1, 1]
+                grip = 2 * (gripper_actions[0] - 0.5)
                 normalized_gripper_position = np.asarray([grip])
                 action = np.concatenate([arm_actions, normalized_gripper_position])
                 self.obs, _, _, _ = self.env.step(action, set_qpos=action)
@@ -211,7 +212,8 @@ class SimMujocoRobot(SimRobotInterface):
         return {}
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        normalized_gripper_position = (0.04 - self.obs['robot0_gripper_qpos'][0]) / 0.04
+        # [-1, 1] -> [0, 1]
+        normalized_gripper_position = (self.obs['robot0_gripper_qpos'][0] + 1) / 2
         obs = {
             'panda_1':
                 {
