@@ -95,7 +95,7 @@ class RobotEnv(gym.Env):
         pass
 
     def get_observation(self):
-        return self.robots.get_robot_state(), None
+        return self.robots.get_robot_state(), self.cameras.read_camera()
 
     def collect_data(self):
         pass

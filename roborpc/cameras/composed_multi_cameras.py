@@ -5,7 +5,7 @@ import zerorpc
 from roborpc.cameras.camera_base import CameraBase
 from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
-from roborpc.cameras.camera_utils import base64_rgb, base64_depth
+from roborpc.cameras.transformations import base64_rgb, base64_depth
 from roborpc.cameras.multi_cameras import MultiCameras
 
 

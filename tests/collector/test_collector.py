@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     while True:
         try:
-            collector.collect_trajectory()
+            collector.collect_trajectory(action_interpolation=True)
         except Exception as e:
             print(e)
             pid = subprocess.run(["pgrep", "-f", "test_collector"], capture_output=True)

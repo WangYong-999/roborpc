@@ -21,7 +21,8 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
                       read_depth: bool = True,
                       max_width: Optional[int] = 1000,
                       max_height: Optional[int] = 500,
-                      aspect_ratio: Optional[float] = 1.5
+                      aspect_ratio: Optional[float] = 1.5,
+                      action_interpolation: bool = False
                       ):
     traj_reader = TrajectoryReader(hdf5_filepath, read_color=read_color, read_depth=read_depth)
     horizon = traj_reader.length()
@@ -42,9 +43,18 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
             visualize_timestep(
                 camera_obs, max_width=max_width, max_height=max_height, aspect_ratio=aspect_ratio, pause_time=15
             )
-        print(f"action: {timestep['action']}")
+        action = timestep["action"]
+        for robot_id, action_dict in action.items():
+            for action_name, action_value in action_dict.items():
+                if type(action_value) == np.ndarray:
+                    action_dict[action_name] = action_value.tolist()
+        print(f"action: {action}")
         print(f"robot_obs: {robot_obs}")
-        env.step(action_linear_interpolation(robot_obs, timestep["action"]))
+        if action_interpolation:
+            env.step(action_linear_interpolation(robot_obs, timestep["action"]))
+        else:
+            print(timestep["action"])
+            env.step(timestep["action"])
 
 
 def visualize_timestep_loop(camera_obs: Dict):

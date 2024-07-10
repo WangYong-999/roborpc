@@ -8,7 +8,7 @@ use_controller = true
 # ON or OFF
 robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4096']
+sever_rpc_ports = ['4097']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -46,10 +46,20 @@ ip_address = '127.0.0.1'
 robot_arm_dof = 7
 robot_gripper_dof = 1
 
-[roborpc.robots.dynamixel.dynamixel_controller_left_arm]
+[roborpc.robots.dynamixel.dynamixel_controller_panda_1]
 start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
-joint_signs = [1, 1, 1, -1, 1, 1, 1] # panda: [1, 1, 1, -1, 1, 1, 1], realman: [1, -1, 1, -1, 1, 1, 1]
+joint_signs = [1, -1, 1, -1, 1, 1, 1]
+gripper = true
+port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
+joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
+gripper_config = [7, 350, 308]
+baudrate = 1000000
+
+[roborpc.robots.dynamixel.dynamixel_controller_realman_1]
+start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+joint_ids = [0, 1, 2, 3, 4, 5, 6]
+joint_signs = [1, -1, 1, -1, 1, 1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
 joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
@@ -60,9 +70,9 @@ baudrate = 1000000
 # This section defines the camera configuration for the robots.
 [roborpc.cameras]
 # ON or OFF
-camera_ids = [['realsense_camera_1', 'realsense_camera_2']]
+camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['4096']
+server_rpc_ports = ['4097']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
 camera_resolution = [640, 480]
@@ -78,7 +88,7 @@ camera_serial_number = '218622275485'
 # This section defines the controller configuration for the robots.
 [roborpc.controllers]
 # ON or OFF
-controller_ids = [['dynamixel_controller_left_arm']]
+controller_ids = [['dynamixel_controller_panda_1']]
 control_robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
@@ -105,69 +115,110 @@ use_zed_save_mp4 = false # for H5_MP4
 save_audio = false
 max_timesteps = 0 # 0 (not used) 1000
 dt = 0.02 # act used
-horizon = 80 # 0 for not used
+horizon = 150 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 
 ######### Isaac Sim Robot Configuration #########
 # This section defines the simulation robot configuration for the robots.
 [roborpc.sim_robots.isaac_sim]
-skip_rendering = false
-task_host=''
-task_port=6028
-rpc_port=4245
-env_usd_path = '/home/jz08/code_repo/franka_isaac/scenes/franka_06_17.usd'
-robot_usd_path = '/home/jz08/code_repo/franka_isaac/scenes/default_environment.usd'
+robot_ids = [['panda_1']]
+camera_ids = [['camera_1', 'camera_2', 'camera_3']]
+server_ips_address = ['127.0.0.1']
+sever_rpc_ports = ['4097']
+usd_path = 'panda_robotiq85_ycb.usd'
 
-[roborpc.sim_robots.isaac_sim.single_franka_vision]
-namespace_root = '/root'  # i.e., the robot Xform prefix
-namespace = '/root/panda'  # i.e., the robot Xform prefix
-init_position=[0, 0, 0]  # in unit cm
-init_orientation=[0.0, 0.0, 0.0]  # in unit degree
+[roborpc.sim_robots.isaac_sim.panda_1]
+robot_arm_dof = 7
+robot_gripper_dof = 2
+action_dof = 15
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0, 0.0]
+robot_description_path = 'panda_robot_descriptor.yaml'
+rmpflow_config_path = 'panda_rmpflow_common.yaml'
+urdf_path = 'franka_panda.urdf'
+end_effector_frame_name = 'panda_link8'
+gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit/Robotiq_2F_85/base_link'
+gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
+arm_base_link_prim_path = '/World/franka/panda_link0'
+gripper_raw_open_close_range = [0, 1]
+gripper_normalized_open_close_range = [0, 1]
 
-[roborpc.sim_robots.isaac_sim.single_franka_vision.handeye_camera]
-name = '/camera_handeye'
-offset = [-0.11, 0.0, 0.0]
-orientation = [180.0, 0.0, 0.0]
-width = 640
-height = 400
-hori_aperture = 4.612866125858013
-vert_aperture = 2.883041328661258
-projection = 'perspective'
-focal_length = 3.00312
-focus_distance = 400
+[roborpc.sim_robots.isaac_sim.panda_2]
+robot_arm_dof = 7
+robot_gripper_dof = 2
+action_dof = 15
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0, 0.0]
+robot_description_path = 'panda_robot_descriptor.yaml'
+rmpflow_config_path = 'panda_rmpflow_common.yaml'
+urdf_path = 'franka_panda.urdf'
+end_effector_frame_name = 'panda_link8'
+gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_01/Robotiq_2F_85/base_link'
+gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
+arm_base_link_prim_path = '/World/franka_01/panda_link0'
 
+[roborpc.sim_robots.isaac_sim.panda_3]
+robot_arm_dof = 7
+robot_gripper_dof = 2
+action_dof = 15
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0, 0.0]
+robot_description_path = 'panda_robot_descriptor.yaml'
+rmpflow_config_path = 'panda_rmpflow_common.yaml'
+urdf_path = 'franka_panda.urdf'
+end_effector_frame_name = 'panda_link8'
+gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_02/Robotiq_2F_85/base_link'
+gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
+arm_base_link_prim_path = '/World/franka_02/panda_link0'
 
-[roborpc.sim_robots.isaac_sim.single_franka_vision.varied_1_camera]
-name = '/varied_1_camera'
-offset = [-0.2, 0.9, 0.7]
-orientation = [-120.0, 180.0, 56.0]
-width = 640
-height = 480
-hori_aperture = 1.9215
-vert_aperture = 1.44
-projection = 'perspective'
-focal_length = 1.25
-focus_distance = 400
+[roborpc.sim_robots.isaac_sim.panda_4]
+robot_arm_dof = 7
+robot_gripper_dof = 2
+action_dof = 15
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0, 0.0]
+robot_description_path = 'panda_robot_descriptor.yaml'
+rmpflow_config_path = 'panda_rmpflow_common.yaml'
+urdf_path = 'franka_panda.urdf'
+end_effector_frame_name = 'panda_link8'
+gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_03/Robotiq_2F_85/base_link'
+gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
+arm_base_link_prim_path = '/World/franka_03/panda_link0'
 
-[roborpc.sim_robots.isaac_sim.single_franka_vision.varied_2_camera]
-name = '/varied_2_camera'
-offset = [-0.3, 0.5, 0.23]
-orientation = [-81.0, 56.0, 152.0]
-width = 640
-height = 480
-hori_aperture = 1.9215
-vert_aperture = 1.44
-projection = 'perspective'
-focal_length = 1.25
-focus_distance = 400
+[roborpc.sim_robots.isaac_sim.ur5e_1]
+robot_arm_dof = 6
+robot_gripper_dof = 2
+action_dof = 14
+robot_zero_action = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+robot_description_path = 'ur5e_robot_descriptor.yaml'
+rmpflow_config_path = 'ur5e_rmpflow_common.yaml'
+urdf_path = 'ur5e.urdf'
+end_effector_frame_name = 'tool0'
 
+[roborpc.sim_robots.isaac_sim.camera_1]
+camera_prim_path = '/World/franka/panda_link8/handeye_camera'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
 
+[roborpc.sim_robots.isaac_sim.camera_2]
+camera_prim_path = '/World/franka/panda_link0/varied_1_camera'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
+
+[roborpc.sim_robots.isaac_sim.camera_3]
+camera_prim_path = '/World/franka/panda_link0/varied_2_camera'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
+
+######### Mujoco Robot Configuration #########
 [roborpc.sim_robots.mujoco]
 robot_ids = [['panda_1']]
 camera_ids = [['realsense_camera_1']]
-server_ips_address = ['192.168.1.100']
-sever_rpc_ports = ['4096']
+server_ips_address = ['127.0.0.1']
+sever_rpc_ports = ['4098']
 zero_action = [[0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0]]
 
 ###### Kinematics Solver Configuration #########

@@ -4,7 +4,7 @@ import pyrealsense2 as rs
 from typing import Dict, List
 
 from roborpc.cameras.camera_base import CameraBase
-from roborpc.cameras.camera_utils import rgb_to_base64, depth_to_base64
+from roborpc.cameras.transformations import rgb_to_base64, depth_to_base64
 
 
 ctx = rs.context()

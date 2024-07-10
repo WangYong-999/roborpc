@@ -22,6 +22,7 @@ class MutilRobotsRpc(RobotBase):
         self.robots = zerorpc.Client(heartbeat=20)
         self.robots.connect("tcp://" + self.server_ip_address + ":" + self.rpc_port)
         self.robots.connect_now()
+        logger.info(f"Multi Robots Connect Success! {self.server_ip_address}:{self.rpc_port}")
 
     def disconnect_now(self):
         self.robots.disconnect_now()

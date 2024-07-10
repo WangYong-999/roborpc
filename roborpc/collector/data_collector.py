@@ -14,6 +14,7 @@ from roborpc.robot_env import RobotEnv
 
 class DataCollector:
     def __init__(self, env: RobotEnv):
+        self.action_interpolation = None
         self.camera_obs = None
         self.last_traj_name = None
         self.env = env
@@ -39,8 +40,10 @@ class DataCollector:
             os.makedirs(self.failure_logdir)
             logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
 
-    def collect_trajectory(self, info=None, practice=False, reset_robot=True, random_reset=False):
+    def collect_trajectory(self, info=None, practice=False, reset_robot=True,
+                           random_reset=False, action_interpolation=False):
         self.last_traj_name = time.asctime().replace(" ", "_")
+        self.action_interpolation = action_interpolation
 
         info_time = self.last_traj_name
 
@@ -134,7 +137,10 @@ class DataCollector:
 
             control_timestamps["control_start"] = time.time_ns() / 1_000_000
             logger.info(f"action: {action}")
-            action_info = self.env.step(action_linear_interpolation(robot_obs, action))
+            if self.action_interpolation:
+                action_info = self.env.step(action_linear_interpolation(robot_obs, action))
+            else:
+                action_info = self.env.step(action)
             logger.info(f"action_info: {action_info}")
 
             control_timestamps["step_end"] = time.time_ns() / 1_000_000
