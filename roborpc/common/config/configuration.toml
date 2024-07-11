@@ -35,6 +35,8 @@ robot_gripper_dof = 1
 ip_address = '192.168.1.20'
 robot_arm_dof = 7
 robot_gripper_dof = 1
+start_arm_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0]
+start_gripper_joints = [0.0]
 
 [roborpc.robots.franka.panda_2]
 ip_address = '192.168.1.21'
@@ -216,10 +218,37 @@ resolution = [640, 480]
 ######### Mujoco Robot Configuration #########
 [roborpc.sim_robots.mujoco]
 robot_ids = [['panda_1']]
-camera_ids = [['realsense_camera_1']]
+camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['4098']
-zero_action = [[0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0]]
+
+[roborpc.sim_robots.mujoco.panda_1]
+robot_arm_dof = 7
+robot_gripper_dof = 1
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+gripper_raw_open_close_range = [0, 1]
+gripper_normalized_open_close_range = [-1, 1]
+
+[roborpc.sim_robots.mujoco.camera_1]
+viewports = 'robot0_eye_in_hand'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
+
+[roborpc.sim_robots.mujoco.camera_2]
+viewports = 'robot0_robotview'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
+
+[roborpc.sim_robots.mujoco.camera_3]
+viewports = 'agentview'
+position = [0.0, 0.0, 0.0]
+rotation = [0.0, 0.0, 0.0, 1.0]
+frequency = 20
+resolution = [640, 480]
 
 ###### Kinematics Solver Configuration #########
 [roborpc.kinematics_solver.curobo_solver_kinematic]

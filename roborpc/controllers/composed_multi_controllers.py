@@ -55,7 +55,7 @@ class ComposedMultiController(ControllerBase):
         server_ips_address = self.controller_config["server_ips_address"]
         sever_rpc_ports = self.controller_config["sever_rpc_ports"]
         for server_ip_address, rpc_port in zip(server_ips_address, sever_rpc_ports):
-            if server_ip_address == "127.0.0.1" or sever_rpc_ports == "":
+            if rpc_port == "":
                 self.composed_multi_controllers[server_ip_address] = MultiControllers()
             else:
                 self.composed_multi_controllers[server_ip_address] = MultiControllersRpc(server_ip_address, rpc_port)

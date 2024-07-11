@@ -31,6 +31,13 @@ class RobotBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def reset_robot_state(self):
+        """
+        Reset the state of the robot.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         """

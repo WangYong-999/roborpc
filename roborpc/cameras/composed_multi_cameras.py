@@ -1,5 +1,8 @@
 import asyncio
+import time
 from typing import Dict, List
+
+import numpy as np
 import zerorpc
 
 from roborpc.cameras.camera_base import CameraBase
@@ -79,12 +82,14 @@ class ComposedMultiCameras(CameraBase):
         return camera_extrinsics
 
     def read_camera(self) -> Dict[str, Dict[str, str]]:
+        start_time = time.time()
         camera_info = {}
         for server_ip_address, multi_camera in self.composed_multi_cameras.items():
             camera_info[server_ip_address] = multi_camera.read_camera()
         new_camera_info = {}
         for server_ip_address, camera_info in camera_info.items():
             for camera_id, info in camera_info.items():
-                new_camera_info[camera_id] = {'color': base64_rgb(info['color']),
-                                              'depth': base64_depth(info['depth'])}
+                new_camera_info[camera_id] = {'color': np.array(info['color']),
+                                              'depth': np.array(info['depth'])}
+        print(f"ComposedMultiCameras.read_camera() took {time.time() - start_time:.3f} seconds")
         return new_camera_info

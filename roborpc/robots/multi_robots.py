@@ -52,6 +52,16 @@ class MultiRobots(RobotBase):
     def get_robot_ids(self) -> List[str]:
         return self.robot_ids
 
+    def reset_robot_state(self):
+        robot_state = {}
+        blocking_info = {}
+        for robot_id, robot in self.robots.items():
+            start_arm_joints = self.robot_config[robot_id]['start_arm_joints']
+            start_gripper_position = self.robot_config[robot_id]['start_gripper_position']
+            robot_state[robot_id] = {'joint_position': start_arm_joints, 'gripper_position': start_gripper_position}
+            blocking_info[robot_id].update({'joint_position': True, 'gripper_position': True})
+        self.set_robot_state(robot_state, blocking_info)
+
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         for robot_id, robot in self.robots.items():
@@ -82,8 +92,6 @@ class MultiRobots(RobotBase):
         robot_state = {}
         for robot_id, robot in self.robots.items():
             robot_state[robot_id] = robot.get_robot_state()
-        for robot_id, state in robot_state.items():
-            self.robot_state[robot_id] = state
         return self.robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
@@ -97,32 +105,24 @@ class MultiRobots(RobotBase):
         joint_positions = {}
         for robot_id, robot in self.robots.items():
             joint_positions[robot_id] = robot.get_joint_positions()
-        for robot_id, positions in joint_positions.items():
-            self.joint_positions[robot_id] = positions
         return self.joint_positions
 
     def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
         gripper_positions = {}
         for robot_id, robot in self.robots.items():
             gripper_positions[robot_id] = robot.get_gripper_position()
-        for robot_id, positions in gripper_positions.items():
-            self.gripper_positions[robot_id] = positions
         return self.gripper_positions
 
     def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
         joint_velocities = {}
         for robot_id, robot in self.robots.items():
             joint_velocities[robot_id] = asyncio.ensure_future(robot.get_joint_velocities())
-        for robot_id, velocities in joint_velocities.items():
-            self.joint_velocities[robot_id] = velocities
         return self.joint_velocities
 
     def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
         ee_poses = {}
         for robot_id, robot in self.robots.items():
             ee_poses[robot_id] = robot.get_ee_pose()
-        for robot_id, pose in ee_poses.items():
-            self.ee_poses[robot_id] = pose
         return self.ee_poses
 
 

@@ -91,8 +91,9 @@ class RobotEnv(gym.Env):
         self.robots.set_robot_state(action, blocking_info)
         return action_info
 
-    def reset(self, random_reset: bool = False):
-        pass
+    def reset(self, random_reset=False):
+        self.robots.reset_robot_state()
+        return self.get_observation()
 
     def get_observation(self):
         return self.robots.get_robot_state(), self.cameras.read_camera()

@@ -39,6 +39,7 @@ class DataCollector:
         if not os.path.isdir(self.failure_logdir):
             os.makedirs(self.failure_logdir)
             logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
+        threading.Thread(target=visualize_timestep_loop, args=(self.camera_obs,)).start()
 
     def collect_trajectory(self, info=None, practice=False, reset_robot=True,
                            random_reset=False, action_interpolation=False):
@@ -113,7 +114,6 @@ class DataCollector:
         num_steps = 0
         if reset_robot:
             self.env.reset(random_reset=random_reset)
-        threading.Thread(target=visualize_timestep_loop, args=(self.camera_obs,)).start()
 
         # Begin! #
         logger.info("press button to move arm!")
@@ -122,8 +122,6 @@ class DataCollector:
             control_timestamps = {"step_start": time.time_ns() / 1_000_000}
 
             robot_obs, self.camera_obs = self.env.get_observation()
-            print(f"robot_obs: {robot_obs}")
-            print(f"camera_obs: {self.camera_obs}")
             timestep = {"observation": self.camera_obs, "action": {}}
 
             control_timestamps["policy_start"] = time.time_ns() / 1_000_000
@@ -136,15 +134,14 @@ class DataCollector:
                 time.sleep(sleep_left)
 
             control_timestamps["control_start"] = time.time_ns() / 1_000_000
-            logger.info(f"action: {action}")
             if self.action_interpolation:
                 action_info = self.env.step(action_linear_interpolation(robot_obs, action))
             else:
                 action_info = self.env.step(action)
-            logger.info(f"action_info: {action_info}")
 
             control_timestamps["step_end"] = time.time_ns() / 1_000_000
             robot_obs["timestamp"] = {"control": control_timestamps}
+            logger.info(f"control timestamps: {control_timestamps}")
             timestep["observation"].update(robot_obs)
             timestep["action"].update(action_info)
             if hdf5_file:

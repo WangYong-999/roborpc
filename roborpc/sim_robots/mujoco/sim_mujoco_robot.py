@@ -6,6 +6,7 @@ from typing import Union, Dict, List
 
 import numpy as np
 
+from roborpc.cameras.transformations import rgb_to_base64, depth_to_base64
 from roborpc.sim_robots.sim_robot_interface import SimRobotInterface, SimRobotRpcInterface
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
@@ -20,6 +21,7 @@ class SimMujocoRobot(SimRobotInterface):
     def __init__(self):
         super().__init__()
 
+        self.obs = {}
         self.blocking = None
         self.robot_state = {}
         parser = argparse.ArgumentParser()
@@ -47,6 +49,33 @@ class SimMujocoRobot(SimRobotInterface):
         ])
 
         self.robot_config = config['roborpc']['sim_robots']['mujoco']
+        self.blocking = {}
+        self.robot_state = {}
+        self.gripper_raw_open_close_range = {}
+        self.gripper_normalized_open_close_range = {}
+        self.robot_ids = self.robot_config['robot_ids'][0]
+        self.robot_arm_dof = {}
+        self.robot_gripper_dof = {}
+        self.robot_zero_action = {}
+        for robot_id in self.robot_ids:
+            logger.info(f"Loading robot {robot_id}")
+            self.robot_arm_dof[robot_id] = self.robot_config[robot_id]['robot_arm_dof']
+            self.robot_gripper_dof[robot_id] = self.robot_config[robot_id]['robot_gripper_dof']
+            self.robot_zero_action[robot_id] = self.robot_config[robot_id]['robot_zero_action']
+            self.gripper_raw_open_close_range[robot_id] = self.robot_config[robot_id]['gripper_raw_open_close_range']
+            self.gripper_normalized_open_close_range[robot_id] = self.robot_config[robot_id][
+                'gripper_normalized_open_close_range']
+
+        self.camera_ids = self.robot_config['camera_ids'][0]
+        self.viewports = []
+        self.cameras_xform = {}
+        self.cameras_cache = {}
+        for camera_id in self.camera_ids:
+            self.cameras_cache[camera_id] = {}
+            resolution = (self.robot_config[camera_id]['resolution'][0], self.robot_config[camera_id]['resolution'][1])
+            self.viewports.append(self.robot_config[camera_id]['viewports'])
+            self.cameras_cache[camera_id]['color'] = np.zeros((resolution[0], resolution[1], 3), dtype=np.float32)
+            self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
 
         self.env = robosuite.make(
             env_name='NutAssemblySquare',
@@ -54,8 +83,9 @@ class SimMujocoRobot(SimRobotInterface):
             controller_configs=load_controller_config(default_controller='JOINT_POSITION'),
             has_renderer=True,
             has_offscreen_renderer=True,
-            render_camera="agentview",
+            render_camera="frontview",
             ignore_done=True,
+            camera_names=[*self.viewports],
             use_camera_obs=True,
             camera_depths=True,
             reward_shaping=True,
@@ -87,40 +117,49 @@ class SimMujocoRobot(SimRobotInterface):
     def _sim_loop(self):
         for _ in range(100):
             self.env.render()
-            self.obs, _, _, _ = self.env.step(np.asarray(self.robot_config['zero_action'][0]),
-                                              set_qpos=self.robot_config['zero_action'][0])
+            for i, robot_id in enumerate(self.robot_ids):
+                self.obs, _, _, _ = self.env.step(np.asarray(self.robot_config[robot_id]['robot_zero_action']),
+                                                  set_qpos=self.robot_config[robot_id]['robot_zero_action'])
         task_completion_hold_count = -1
         n_actions = 1000
-        actions = 0.1 * np.random.uniform(low=-1.0, high=1.0, size=(n_actions, self.env.action_spec[0].shape[0]))
+        actions = []
 
         while True:
             self.env.render()
-            robot = self.robot_state.get('panda_1', None)
-            if robot is None:
-                continue
-            arm_actions = robot.get('joint_position', None)
-            gripper_actions = robot.get('gripper_position', None)
-            # base_actions = self.robot_state.get('base_position', np.zeros(3))
-            # torso_actions = self.robot_state.get('torso_position', np.zeros(1))
-            # mode_action = self.robot_state.get('mode', [-1])
-            # self.env.robots[0].enable_parts(right=True, left=True)
-            if arm_actions is not None and gripper_actions is not None:
-                print("Arm actions: ", arm_actions)
-                print("Gripper actions: ", gripper_actions)
-                # [0, 1] -> [-1, 1]
-                grip = 2 * (gripper_actions[0] - 0.5)
-                normalized_gripper_position = np.asarray([grip])
-                action = np.concatenate([arm_actions, normalized_gripper_position])
-                self.obs, _, _, _ = self.env.step(action, set_qpos=action)
-                if self.env._check_success():
-                    if task_completion_hold_count > 0:
-                        task_completion_hold_count -= 1
+            for i, robot_id in enumerate(self.robot_ids):
+                robot = self.robot_state.get(robot_id, None)
+                if robot is None:
+                    continue
+                robot_arm_dof = self.robot_arm_dof[robot_id]
+                robot_gripper_dof = self.robot_gripper_dof[robot_id]
+                arm_actions = robot.get('joint_position', None)
+                normalized_gripper_actions = robot.get('gripper_position', None)
+                # base_actions = self.robot_state.get('base_position', np.zeros(3))
+                # torso_actions = self.robot_state.get('torso_position', np.zeros(1))
+                # mode_action = self.robot_state.get('mode', [-1])
+                # self.env.robots[0].enable_parts(right=True, left=True)
+                if arm_actions is not None and normalized_gripper_actions is not None:
+                    gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
+                    gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
+                    gripper_actions = (normalized_gripper_actions[0] - gripper_raw_open_close_range[0]) / (
+                            gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) * (
+                                              gripper_normalized_open_close_range[1] -
+                                              gripper_normalized_open_close_range[0]) + \
+                                      gripper_normalized_open_close_range[0]
+                    actions[:robot_arm_dof] = arm_actions
+                    actions[robot_arm_dof:robot_arm_dof + 1] = np.asarray([gripper_actions])
+
+                    self.obs, _, _, _ = self.env.step(actions, set_qpos=actions)
+                    if self.env._check_success():
+                        if task_completion_hold_count > 0:
+                            task_completion_hold_count -= 1
+                        else:
+                            task_completion_hold_count = 10
                     else:
-                        task_completion_hold_count = 10
-                else:
-                    task_completion_hold_count = -1
+                        task_completion_hold_count = -1
 
     def connect_now(self):
+        logger.info("Connect SimMujocoRobot")
         pass
 
     def disconnect_now(self):
@@ -128,6 +167,9 @@ class SimMujocoRobot(SimRobotInterface):
 
     def get_robot_ids(self) -> List[str]:
         return self.robot_config["robot_ids"][0]
+
+    def reset_robot_state(self):
+        pass
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
@@ -150,17 +192,23 @@ class SimMujocoRobot(SimRobotInterface):
         return {}
 
     def get_robot_state(self) -> Dict[str, List[float]]:
-        # [-1, 1] -> [0, 1]
-        normalized_gripper_position = (self.obs['robot0_gripper_qpos'][0] + 1) / 2
-        obs = {
-            'panda_1':
-                {
-                    "joint_position": self.obs['robot0_joint_pos'].tolist(),
-                    "gripper_position": [normalized_gripper_position],
-                    "ee_pose": np.concatenate([self.obs['robot0_eef_pos'], self.obs['robot0_eef_quat']]).tolist(),
-                }
-        }
-        return obs
+        robot_state = {}
+        for i, robot_id in enumerate(self.robot_ids):
+            robot_state[robot_id] = {}
+            robot_arm_dof = self.robot_arm_dof[robot_id]
+            robot_gripper_dof = self.robot_gripper_dof[robot_id]
+            joint_positions = self.obs["robot0_joint_pos"][:robot_arm_dof]
+            gripper_positions = self.obs['robot0_gripper_qpos'][0]
+            # gripper_raw_open_close_range -> gripper_normalized_open_close_range
+            gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
+            gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
+            normalized_gripper_position = (gripper_positions - gripper_normalized_open_close_range[0]) / (
+                    gripper_normalized_open_close_range[1] - gripper_normalized_open_close_range[0]) * (
+                                                  gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) + \
+                                          gripper_raw_open_close_range[0]
+            robot_state[robot_id] = {"joint_position": joint_positions.tolist(),
+                                     "gripper_position": [normalized_gripper_position]}
+        return robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
         return {}
@@ -187,10 +235,21 @@ class SimMujocoRobot(SimRobotInterface):
         return {}
 
     def read_camera(self) -> Dict[str, Dict[str, str]]:
-        camera_name = 'agentview'
-        image = self.obs["{}_image".format(camera_name)][::-1]
-        depth_map = self.obs["{}_depth".format(camera_name)][::-1]
-        return {camera_name: {"image": image, "depth_map": depth_map}}
+        camera_data = {}
+        for camera_id, viewport in zip(self.camera_ids, self.viewports):
+            camera_data[camera_id] = {}
+            try:
+                color_data = self.obs["{}_image".format(viewport)][::-1]
+                camera_data[camera_id]['color'] = rgb_to_base64(color_data)
+                depth_data = self.obs["{}_depth".format(viewport)][::-1]
+                camera_data[camera_id]['depth'] = depth_to_base64(depth_data)
+                self.cameras_cache[camera_id]['color'] = color_data
+                self.cameras_cache[camera_id]['depth'] = depth_data
+            except Exception as e:
+                logger.error(e)
+                camera_data[camera_id]['color'] = rgb_to_base64(self.cameras_cache[camera_id]['color'])
+                camera_data[camera_id]['depth'] = depth_to_base64(self.cameras_cache[camera_id]['depth'])
+        return camera_data
 
 
 if __name__ == '__main__':

@@ -31,6 +31,9 @@ class MutilRobotsRpc(RobotBase):
     def get_robot_ids(self) -> List[str]:
         return self.robots.get_robot_ids()
 
+    def reset_robot_state(self):
+        self.robots.reset_robot_state()
+
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                               blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         self.robots.set_robot_state(state, blocking)
@@ -98,6 +101,10 @@ class ComposedMultiRobots(RobotBase):
             print(multi_robots.get_robot_ids())
             robot_ids.extend(multi_robots.get_robot_ids())
         return robot_ids
+
+    def reset_robot_state(self):
+        for server_ip_address, multi_robots in self.composed_multi_robots.items():
+            multi_robots.reset_robot_state()
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):

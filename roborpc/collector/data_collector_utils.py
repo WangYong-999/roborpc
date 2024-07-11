@@ -48,12 +48,9 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
             for action_name, action_value in action_dict.items():
                 if type(action_value) == np.ndarray:
                     action_dict[action_name] = action_value.tolist()
-        print(f"action: {action}")
-        print(f"robot_obs: {robot_obs}")
         if action_interpolation:
             env.step(action_linear_interpolation(robot_obs, timestep["action"]))
         else:
-            print(timestep["action"])
             env.step(timestep["action"])
 
 
@@ -75,7 +72,7 @@ def visualize_timestep(camera_obs: Dict,
     sorted_image_list = []
     for camera_id, obs in camera_obs.items():
         sorted_image_list.append(obs['color'])
-
+    print(sorted_image_list)
     num_images = len(sorted_image_list)
     max_num_rows = int(num_images ** 0.5)
     for num_rows in range(max_num_rows, 0, -1):
@@ -99,7 +96,6 @@ def visualize_timestep(camera_obs: Dict,
     for i in range(num_rows):
         img_grid[i] = np.hstack(img_grid[i])
     img_grid = np.vstack(img_grid)
-
     cv2.imshow("Image Feed", img_grid)
     cv2.waitKey(pause_time)
 

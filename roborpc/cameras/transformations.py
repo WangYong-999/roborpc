@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import base64
@@ -87,10 +89,11 @@ def rgb_to_base64(rgb, size=None, quality=100):
         rgb = cv2.resize(rgb, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
     # webp seems to be better than png and jpg as a codec, in both compression and quality
-    encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), quality]
-    fmt = ".webp"
+    # encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), quality]
+    fmt = ".png"
 
-    _, rgb_data = cv2.imencode(fmt, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), encode_param)
+    # _, rgb_data = cv2.imencode(fmt, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), encode_param)
+    _, rgb_data = cv2.imencode(fmt, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
     return base64.b64encode(rgb_data).decode("utf-8")
 
 
@@ -104,10 +107,10 @@ def depth_to_base64(depth, size=None, quality=100):
     depth_img = 255 - depth_img
 
     # webp seems to be better than png and jpg as a codec, in both compression and quality
-    encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), quality]
-    fmt = ".webp"
+    # encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), quality]
+    fmt = ".png"
 
-    _, depth_img_data = cv2.imencode(fmt, depth_img, encode_param)
+    _, depth_img_data = cv2.imencode(fmt, depth_img)
     return base64.b64encode(depth_img_data).decode("utf-8")
 
 

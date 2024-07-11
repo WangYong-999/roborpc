@@ -14,6 +14,9 @@ class SimRobotInterface(RobotBase):
     def get_robot_ids(self) -> List[str]:
         pass
 
+    def reset_robot_state(self):
+        pass
+
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         pass
@@ -73,6 +76,9 @@ class SimRobotRpcInterface(SimRobotInterface):
 
     def get_robot_ids(self) -> List[str]:
         return self.robot.get_robot_ids()
+
+    def reset_robot_state(self):
+        self.robot.reset_robot_state()
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):

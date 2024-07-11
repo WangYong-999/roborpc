@@ -43,6 +43,9 @@ class RealMan(RobotBase):
     def get_robot_ids(self) -> List[str]:
         pass
 
+    def reset_robot_state(self):
+        pass
+
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
         for action_space, action in state.items():
