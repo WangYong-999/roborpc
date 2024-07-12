@@ -60,7 +60,7 @@ class SimRobotInterface(RobotBase):
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         pass
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         pass
 
 
@@ -125,5 +125,5 @@ class SimRobotRpcInterface(SimRobotInterface):
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         return self.robot.get_camera_extrinsics()
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         return self.robot.read_camera()

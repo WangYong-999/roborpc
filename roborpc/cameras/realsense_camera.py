@@ -1,10 +1,10 @@
+import pickle
 import time
 import numpy as np
 import pyrealsense2 as rs
 from typing import Dict, List
 
 from roborpc.cameras.camera_base import CameraBase
-from roborpc.cameras.transformations import rgb_to_base64, depth_to_base64
 
 
 ctx = rs.context()
@@ -69,7 +69,7 @@ class RealSenseCamera(CameraBase):
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         pass
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         frames = self.pipeline.wait_for_frames()
         color_frame = frames.get_color_frame()
         color_image = np.asanyarray(color_frame.get_data())
@@ -79,7 +79,7 @@ class RealSenseCamera(CameraBase):
         image = color_image[:, :, ::-1]
         depth = depth_image
         camera_info = {
-            "color": rgb_to_base64(image, quality=100),
-            "depth": depth_to_base64(depth, quality=100)
+            "color": pickle.loads(image),
+            "depth": pickle.loads(depth)
         }
         return camera_info

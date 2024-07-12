@@ -1,4 +1,5 @@
 import argparse
+import pickle
 import threading
 import traceback
 from collections import OrderedDict
@@ -6,7 +7,6 @@ from typing import Union, Dict, List
 
 import numpy as np
 
-from roborpc.cameras.transformations import rgb_to_base64, depth_to_base64
 from roborpc.sim_robots.sim_robot_interface import SimRobotInterface, SimRobotRpcInterface
 from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
@@ -234,21 +234,21 @@ class SimMujocoRobot(SimRobotInterface):
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         return {}
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         camera_data = {}
         for camera_id, viewport in zip(self.camera_ids, self.viewports):
             camera_data[camera_id] = {}
             try:
                 color_data = self.obs["{}_image".format(viewport)][::-1]
-                camera_data[camera_id]['color'] = rgb_to_base64(color_data)
+                camera_data[camera_id]['color'] = pickle.dumps(color_data)
                 depth_data = self.obs["{}_depth".format(viewport)][::-1]
-                camera_data[camera_id]['depth'] = depth_to_base64(depth_data)
-                self.cameras_cache[camera_id]['color'] = color_data
-                self.cameras_cache[camera_id]['depth'] = depth_data
+                camera_data[camera_id]['depth'] = pickle.dumps(depth_data)
+                # self.cameras_cache[camera_id]['color'] = color_data
+                # self.cameras_cache[camera_id]['depth'] = depth_data
             except Exception as e:
                 logger.error(e)
-                camera_data[camera_id]['color'] = rgb_to_base64(self.cameras_cache[camera_id]['color'])
-                camera_data[camera_id]['depth'] = depth_to_base64(self.cameras_cache[camera_id]['depth'])
+                camera_data[camera_id]['color'] = pickle.dumps(self.cameras_cache[camera_id]['color'])
+                camera_data[camera_id]['depth'] = pickle.dumps(self.cameras_cache[camera_id]['depth'])
         return camera_data
 
 

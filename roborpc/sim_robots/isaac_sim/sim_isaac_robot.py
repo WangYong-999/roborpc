@@ -1,10 +1,10 @@
 import os
+import pickle
 import time
 from pathlib import Path
 
 from omni.isaac.kit import SimulationApp
 
-from roborpc.cameras.transformations import rgb_to_base64, depth_to_base64
 from roborpc.common.config_loader import config
 
 simulation_app = SimulationApp({"headless": False, "open_usd":
@@ -20,7 +20,6 @@ from omni.isaac.core import World
 from tasks.pick_place import PickPlace
 from controllers.pick_place import PickPlaceController
 from omni.isaac.core.utils.types import ArticulationAction
-import omni.isaac.core.utils.numpy.rotations as rot_utils
 
 import threading
 import transforms3d as t3d
@@ -29,8 +28,6 @@ import numpy as np
 import cv2
 from pynput import keyboard
 from pynput.keyboard import Key
-import multiprocessing
-from multiprocessing.shared_memory import SharedMemory
 from typing import List, Union, Dict
 from roborpc.sim_robots.sim_robot_interface import SimRobotInterface, SimRobotRpcInterface
 from roborpc.common.logger_loader import logger
@@ -84,7 +81,8 @@ class SimIsaacRobot(SimRobotInterface):
             self.articulation_controller[robot_id] = robot.get_articulation_controller()
 
             self.gripper_raw_open_close_range[robot_id] = self.robot_config[robot_id]['gripper_raw_open_close_range']
-            self.gripper_normalized_open_close_range[robot_id] = self.robot_config[robot_id]['gripper_normalized_open_close_range']
+            self.gripper_normalized_open_close_range[robot_id] = self.robot_config[robot_id][
+                'gripper_normalized_open_close_range']
 
         self.camera_ids = self.robot_config['camera_ids'][0]
         self.viewports = {}
@@ -119,50 +117,12 @@ class SimIsaacRobot(SimRobotInterface):
                 s.run()
             except (Exception,):
                 logger.error('Error in DaemonLauncher._listener_rpc: %s' % traceback.format_exc())
+
         threading.Thread(target=self.run_key_listen).start()
         threading.Thread(target=self.random_scene_objects_pose, name='RandomObjectsPose', daemon=False).start()
         threading.Thread(target=_listener_rpc, name='RpcListener', daemon=False).start()
 
-        multiprocessing.log_to_stderr().setLevel(multiprocessing.SUBDEBUG)
-        multiprocessing_manager = multiprocessing.Manager()
-        self.camera_data = multiprocessing_manager.dict()
-        self.color_data = multiprocessing_manager
-        self._sim_start = False
-        num_processes = 4 # multiprocessing.cpu_count() - 1
-        for camera_id, viewport in self.viewports.items():
-            if self._sim_start:
-                color_data = np.asarray(viewport.get_rgba(), dtype=np.float32)
-                depth_data = np.asarray(viewport.get_depth(), dtype=np.float32)
-                multiprocessing.Pool(1, self._images_loop, (camera_id, color_data, depth_data))
-
         self._sim_loop()
-
-    def _images_loop(self, camera_id, color_data, depth_data):
-        while True:
-            print("images_loop")
-            start_time = time.time_ns() / 1000000
-            self.camera_data[camera_id] = {}
-            try:
-                s1_time = time.time_ns() / 1000000
-                color_data = np.asarray(viewport.get_rgba(), dtype=np.float32)
-                color_data = cv2.cvtColor(color_data, cv2.COLOR_RGBA2RGB)
-                s2_time = time.time_ns() / 1000000
-                self.camera_data[camera_id]['color'] = rgb_to_base64(color_data)
-                s3_time = time.time_ns() / 1000000
-                depth_data = np.asarray(viewport.get_depth(), dtype=np.float32)
-                # depth_data[np.where(np.isnan(depth_data))] = 0.0
-                # depth_data *= 10000
-                s4_time = time.time_ns() / 1000000
-                self.camera_data[camera_id]['depth'] = depth_to_base64(depth_data)
-                s5_time = time.time_ns() / 1000000
-
-                self.cameras_cache[camera_id]['color'] = color_data
-                self.cameras_cache[camera_id]['depth'] = depth_data
-            except Exception as e:
-                logger.error(e)
-                self.camera_data[camera_id]['color'] = rgb_to_base64(self.cameras_cache[camera_id]['color'])
-                self.camera_data[camera_id]['depth'] = depth_to_base64(self.cameras_cache[camera_id]['depth'])
-            print(f"time: {time.time_ns() / 1000000 - start_time}")
 
     def _sim_loop(self):
         for viewport_id, viewport in self.viewports.items():
@@ -181,8 +141,14 @@ class SimIsaacRobot(SimRobotInterface):
                         actions[:robot_arm_dof + robot_gripper_dof] = self.robot_zero_action[
                             robot_id]
                         self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
-                self._sim_start = True
                 self.obs = self.my_world.get_observations()
+                for camera_id in self.camera_ids:
+                    try:
+                        self.cameras_cache[camera_id]['color'] = np.asarray(self.viewports[camera_id].get_rgba(), dtype=np.uint8)
+                        self.cameras_cache[camera_id]['depth'] = np.asarray(self.viewports[camera_id].get_depth(), dtype=np.uint8)
+                    except Exception as e:
+                        logger.info(f"Error getting camera {camera_id} data: {e}")
+                self._sim_start = True
                 for i, robot_id in enumerate(self.robot_ids):
                     actions = np.nan * np.ones(self.action_dof[robot_id])
                     robot = self.robot_state.get(robot_id, None)
@@ -197,9 +163,12 @@ class SimIsaacRobot(SimRobotInterface):
                     gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
                     gripper_actions = (normalized_gripper_actions[0] - gripper_raw_open_close_range[0]) / (
                             gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) * (
-                            gripper_normalized_open_close_range[1] - gripper_normalized_open_close_range[0]) + gripper_normalized_open_close_range[0]
+                                              gripper_normalized_open_close_range[1] -
+                                              gripper_normalized_open_close_range[0]) + \
+                                      gripper_normalized_open_close_range[0]
                     actions[:robot_arm_dof] = arm_actions
-                    actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray([gripper_actions, gripper_actions])
+                    actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
+                        [gripper_actions, gripper_actions])
                     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
         simulation_app.close()
 
@@ -299,7 +268,8 @@ class SimIsaacRobot(SimRobotInterface):
             gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
             normalized_gripper_position = (gripper_positions[0] - gripper_normalized_open_close_range[0]) / (
                     gripper_normalized_open_close_range[1] - gripper_normalized_open_close_range[0]) * (
-                            gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) + gripper_raw_open_close_range[0]
+                                                  gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) + \
+                                          gripper_raw_open_close_range[0]
             robot_state[robot_id] = {"joint_position": joint_positions.tolist(),
                                      "gripper_position": [normalized_gripper_position]}
         return robot_state
@@ -339,34 +309,14 @@ class SimIsaacRobot(SimRobotInterface):
             cameras_extrinsics[camera_id] = camera_world_pose_data
         return cameras_extrinsics
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
-        # camera_data = {}
-        #
-        # for camera_id, viewport in self.viewports.items():
-        #     camera_data[camera_id] = {}
-        #     try:
-        #         s1_time = time.time_ns() / 1000000
-        #         color_data = np.asarray(viewport.get_rgba(), dtype=np.float32)
-        #         color_data = cv2.cvtColor(color_data, cv2.COLOR_RGBA2RGB)
-        #         s2_time = time.time_ns() / 1000000
-        #         camera_data[camera_id]['color'] = rgb_to_base64(color_data)
-        #         s3_time = time.time_ns() / 1000000
-        #         depth_data = np.asarray(viewport.get_depth(), dtype=np.float32)
-        #         # depth_data[np.where(np.isnan(depth_data))] = 0.0
-        #         # depth_data *= 10000
-        #         s4_time = time.time_ns() / 1000000
-        #         camera_data[camera_id]['depth'] = depth_to_base64(depth_data)
-        #         s5_time = time.time_ns() / 1000000
-        #
-        #         self.cameras_cache[camera_id]['color'] = color_data
-        #         self.cameras_cache[camera_id]['depth'] = depth_data
-        #     except Exception as e:
-        #         logger.error(e)
-        #         camera_data[camera_id]['color'] = rgb_to_base64(self.cameras_cache[camera_id]['color'])
-        #         camera_data[camera_id]['depth'] = depth_to_base64(self.cameras_cache[camera_id]['depth'])
-        #
-        # return camera_data
-        return self.camera_data
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
+        camera_data = {}
+        for camera_id, camera_cache in self.cameras_cache.items():
+            color_data = cv2.cvtColor(camera_cache['color'], cv2.COLOR_RGBA2RGB)
+            color_data_base = pickle.dumps(color_data)
+            depth_data_base = pickle.dumps(camera_cache['depth'])
+            camera_data[camera_id] = {"color": color_data_base, "depth": depth_data_base}
+        return camera_data
 
 
 SimIsaacRobot()

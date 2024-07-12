@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 import time
 from typing import Dict, List
 
@@ -8,7 +9,6 @@ import zerorpc
 from roborpc.cameras.camera_base import CameraBase
 from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
-from roborpc.cameras.transformations import base64_rgb, base64_depth
 from roborpc.cameras.multi_cameras import MultiCameras
 
 
@@ -37,7 +37,7 @@ class MultiCamerasRpc(CameraBase):
     def get_camera_extrinsics(self) -> Dict[str, List[float]]:
         return self.cameras.get_camera_extrinsices()
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         return self.cameras.read_camera()
 
 
@@ -81,15 +81,13 @@ class ComposedMultiCameras(CameraBase):
             camera_extrinsics[server_ip_address] = multi_camera.get_camera_extrinsics()
         return camera_extrinsics
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
-        start_time = time.time()
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         camera_info = {}
         for server_ip_address, multi_camera in self.composed_multi_cameras.items():
             camera_info[server_ip_address] = multi_camera.read_camera()
         new_camera_info = {}
         for server_ip_address, camera_info in camera_info.items():
             for camera_id, info in camera_info.items():
-                new_camera_info[camera_id] = {'color': np.array(info['color']),
-                                              'depth': np.array(info['depth'])}
-        print(f"ComposedMultiCameras.read_camera() took {time.time() - start_time:.3f} seconds")
+                new_camera_info[camera_id] = {'color': pickle.loads(info['color']),
+                                              'depth': pickle.loads(info['depth'])}
         return new_camera_info

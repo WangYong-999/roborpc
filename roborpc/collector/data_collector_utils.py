@@ -53,17 +53,6 @@ def replay_trajectory(env: RobotEnv, hdf5_filepath: str,
         else:
             env.step(timestep["action"])
 
-
-def visualize_timestep_loop(camera_obs: Dict):
-    while camera_obs is not None:
-        try:
-            visualize_timestep(camera_obs)
-        except Exception as e:
-            logger.error(f"Error in visualize_timestep_loop: {e}")
-            cv2.destroyAllWindows()
-            break
-
-
 def visualize_timestep(camera_obs: Dict,
                        max_width: int = 1000,
                        max_height: int = 500,
@@ -72,14 +61,12 @@ def visualize_timestep(camera_obs: Dict,
     sorted_image_list = []
     for camera_id, obs in camera_obs.items():
         sorted_image_list.append(obs['color'])
-    print(sorted_image_list)
     num_images = len(sorted_image_list)
     max_num_rows = int(num_images ** 0.5)
     for num_rows in range(max_num_rows, 0, -1):
         num_cols = num_images // num_rows
         if num_images % num_rows == 0:
             break
-
     max_img_width, max_img_height = max_width // num_cols, max_height // num_rows
     if max_img_width > aspect_ratio * max_img_height:
         img_width, img_height = max_img_width, int(max_img_width / aspect_ratio)
@@ -91,6 +78,7 @@ def visualize_timestep(camera_obs: Dict,
     for i in range(len(sorted_image_list)):
         img = Image.fromarray(sorted_image_list[i])
         resized_img = img.resize((img_width, img_height), Image.Resampling.LANCZOS)
+        resized_img = cv2.cvtColor(np.array(resized_img), cv2.COLOR_RGB2BGR)
         img_grid[i % num_rows].append(np.array(resized_img))
 
     for i in range(num_rows):

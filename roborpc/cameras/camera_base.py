@@ -37,7 +37,7 @@ class CameraBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         """Read a frame from the camera.
 
         Returns:

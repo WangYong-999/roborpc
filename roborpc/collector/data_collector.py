@@ -1,10 +1,12 @@
 import os
 import threading
 import time
+from copy import deepcopy
 from datetime import date
 from typing import Optional, Dict
 
-from roborpc.collector.data_collector_utils import TrajectoryWriter, visualize_timestep_loop, visualize_timestep
+import cv2
+from roborpc.collector.data_collector_utils import TrajectoryWriter, visualize_timestep
 from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
 from roborpc.kinematics_solver.trajectory_interpolation import action_linear_interpolation
@@ -39,7 +41,19 @@ class DataCollector:
         if not os.path.isdir(self.failure_logdir):
             os.makedirs(self.failure_logdir)
             logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
-        threading.Thread(target=visualize_timestep_loop, args=(self.camera_obs,)).start()
+        threading.Thread(target=self.visualize_timestep_loop, daemon=True).start()
+
+    def visualize_timestep_loop(self):
+        while True:
+            if self.camera_obs is None:
+                time.sleep(0.001)
+                continue
+            try:
+                visualize_timestep(self.camera_obs)
+            except Exception as e:
+                logger.error(f"Error in visualize_timestep_loop: {e}")
+                cv2.destroyAllWindows()
+                break
 
     def collect_trajectory(self, info=None, practice=False, reset_robot=True,
                            random_reset=False, action_interpolation=False):
@@ -121,8 +135,9 @@ class DataCollector:
             controller_info = {} if (controller is None) else controller.get_info()
             control_timestamps = {"step_start": time.time_ns() / 1_000_000}
 
-            robot_obs, self.camera_obs = self.env.get_observation()
-            timestep = {"observation": self.camera_obs, "action": {}}
+            robot_obs, camera_obs = self.env.get_observation()
+            self.camera_obs = deepcopy(camera_obs)
+            timestep = {"observation": camera_obs, "action": {}}
 
             control_timestamps["policy_start"] = time.time_ns() / 1_000_000
             action = controller.forward(robot_obs)
@@ -141,7 +156,7 @@ class DataCollector:
 
             control_timestamps["step_end"] = time.time_ns() / 1_000_000
             robot_obs["timestamp"] = {"control": control_timestamps}
-            logger.info(f"control timestamps: {control_timestamps}")
+            # logger.info(f"control timestamps: {control_timestamps}")
             timestep["observation"].update(robot_obs)
             timestep["action"].update(action_info)
             if hdf5_file:

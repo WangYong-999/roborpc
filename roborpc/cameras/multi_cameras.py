@@ -57,7 +57,7 @@ class MultiCameras(CameraBase):
             camera_extrinsics[camera_id] = camera.get_camera_extrinsics()
         return camera_extrinsics
 
-    def read_camera(self) -> Dict[str, Dict[str, str]]:
+    def read_camera(self) -> Dict[str, Dict[str, bytes]]:
         camera_frames = {}
         for camera_id, camera in self.cameras.items():
             camera_frames[camera_id] = camera.read_camera()
