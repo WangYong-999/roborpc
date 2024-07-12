@@ -74,7 +74,7 @@ class RealMan(RobotBase):
                     blocking: Union[bool, List[bool]] = False):
         self.robot.set_gripper_opening(action[0])
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         # TODO: gripper bug
         robot_state = {"joint_position": self.get_joint_positions(),
                        "gripper_position": self.get_gripper_position(),
@@ -169,7 +169,7 @@ class MultiRealMan(RobotBase):
                                                                         blocking[robot_id])
                                                       for robot_id, robot in self.robots.items()]))
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         robot_state = {}
         for robot_id, robot in self.robots.items():
             robot_state[robot_id] = asyncio.ensure_future(robot.get_robot_state())

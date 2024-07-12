@@ -123,7 +123,7 @@ class Dynamixel(RobotBase):
                     blocking: Union[bool, List[bool]] = False):
         pass
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         pos = (self._driver.get_joints() - self._joint_offsets) * self._joint_signs
         assert len(pos) == len(self._joint_ids)
 

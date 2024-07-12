@@ -130,7 +130,16 @@ class DataCollector:
             self.env.reset(random_reset=random_reset)
 
         # Begin! #
-        logger.info("press button to move arm!")
+        logger.info("press A button to move arm!")
+        while True:
+            controller_info = {} if (controller is None) else controller.get_info()
+            move = False
+            for controller_id, info in controller_info.items():
+                if info.get("success", True):
+                    move = True
+            if move:
+                break
+
         while True:
             controller_info = {} if (controller is None) else controller.get_info()
             control_timestamps = {"step_start": time.time_ns() / 1_000_000}
@@ -159,6 +168,8 @@ class DataCollector:
             # logger.info(f"control timestamps: {control_timestamps}")
             timestep["observation"].update(robot_obs)
             timestep["action"].update(action_info)
+            logger.info(f"robot_obs: {robot_obs}")
+            logger.info(f"action_info: {action_info}")
             if hdf5_file:
                 traj_writer.write_timestep(timestep)
 

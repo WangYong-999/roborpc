@@ -84,7 +84,7 @@ class RobotBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         """Get the state of the robot.
 
         Returns:

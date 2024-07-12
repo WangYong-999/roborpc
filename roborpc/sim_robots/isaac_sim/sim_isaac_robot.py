@@ -6,6 +6,7 @@ from pathlib import Path
 from omni.isaac.kit import SimulationApp
 
 from roborpc.common.config_loader import config
+from roborpc.kinematics_solver.trajectory_interpolation import action_linear_interpolation
 
 simulation_app = SimulationApp({"headless": False, "open_usd":
     os.path.join(Path(__file__).parent, f"usds/{config['roborpc']['sim_robots']['isaac_sim']['usd_path']}")})
@@ -41,6 +42,7 @@ class SimIsaacRobot(SimRobotInterface):
         self.gripper_normalized_open_close_range = {}
         self.my_world = World(stage_units_in_meters=1.0)
         self.button_pressed = False
+        self.reset_robot_flag = False
 
         self.robot_config = config['roborpc']['sim_robots']['isaac_sim']
         self.robot_ids = self.robot_config['robot_ids'][0]
@@ -50,8 +52,10 @@ class SimIsaacRobot(SimRobotInterface):
         self.my_controller = {}
         self.articulation_controller = {}
         self.action_dof = {}
+        self.gripper_signs = {}
         for robot_id in self.robot_ids:
             logger.info(f"Loading robot {robot_id}")
+            self.gripper_signs[robot_id] = self.robot_config[robot_id]['gripper_signs']
             self.robot_arm_dof[robot_id] = self.robot_config[robot_id]['robot_arm_dof']
             self.robot_gripper_dof[robot_id] = self.robot_config[robot_id]['robot_gripper_dof']
             self.robot_zero_action[robot_id] = self.robot_config[robot_id]['robot_zero_action']
@@ -94,7 +98,6 @@ class SimIsaacRobot(SimRobotInterface):
             frequency = self.robot_config[camera_id]['frequency']
             resolution = (self.robot_config[camera_id]['resolution'][0], self.robot_config[camera_id]['resolution'][1])
             self.cameras_xform[camera_id] = XFormPrim(prim_path=camera_prim_path)
-            print(camera_prim_path)
             self.viewports[camera_id] = Camera(
                 prim_path=camera_prim_path,
                 frequency=frequency,
@@ -131,29 +134,23 @@ class SimIsaacRobot(SimRobotInterface):
         while simulation_app.is_running():
             self.my_world.step(render=True)
             if self.my_world.is_playing():
-                if self.my_world.current_time_step_index <= 3:
+                self.obs = self.my_world.get_observations()
+                if self.my_world.current_time_step_index <= 3 or self.reset_robot_flag:
                     logger.info("Resetting robots")
                     for i, robot_id in enumerate(self.robot_ids):
-                        actions = np.nan * np.ones(self.action_dof[robot_id])
                         self.my_controller[robot_id].reset()
-                        robot_arm_dof = self.robot_arm_dof[robot_id]
-                        robot_gripper_dof = self.robot_gripper_dof[robot_id]
-                        actions[:robot_arm_dof + robot_gripper_dof] = self.robot_zero_action[
-                            robot_id]
-                        self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
-                self.obs = self.my_world.get_observations()
+                    self._reset_robot()
+                    self.reset_robot_flag = False
                 for camera_id in self.camera_ids:
                     try:
                         self.cameras_cache[camera_id]['color'] = np.asarray(self.viewports[camera_id].get_rgba(), dtype=np.uint8)
                         self.cameras_cache[camera_id]['depth'] = np.asarray(self.viewports[camera_id].get_depth(), dtype=np.uint8)
                     except Exception as e:
                         logger.info(f"Error getting camera {camera_id} data: {e}")
-                self._sim_start = True
                 for i, robot_id in enumerate(self.robot_ids):
-                    actions = np.nan * np.ones(self.action_dof[robot_id])
+                    actions = []
                     robot = self.robot_state.get(robot_id, None)
                     if robot is None:
-                        self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
                         continue
                     robot_arm_dof = self.robot_arm_dof[robot_id]
                     robot_gripper_dof = self.robot_gripper_dof[robot_id]
@@ -168,9 +165,49 @@ class SimIsaacRobot(SimRobotInterface):
                                       gripper_normalized_open_close_range[0]
                     actions[:robot_arm_dof] = arm_actions
                     actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
-                        [gripper_actions, gripper_actions])
+                        [gripper_actions * self.gripper_signs[robot_id][0],
+                         gripper_actions * self.gripper_signs[robot_id][1]])
                     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                    self.robot_state = {}
+                    print('aaaa')
         simulation_app.close()
+
+    def _reset_robot(self):
+        state = {}
+        robot_obs = self.get_robot_state()
+
+        for i, robot_id in enumerate(self.robot_ids):
+            robot_arm_dof = self.robot_arm_dof[robot_id]
+            robot_gripper_dof = self.robot_gripper_dof[robot_id]
+
+            arm_actions = self.robot_zero_action[robot_id][:robot_arm_dof]
+            gripper_actions = self.robot_zero_action[robot_id][robot_arm_dof:robot_arm_dof + robot_gripper_dof]
+            state[robot_id] = {'joint_position': arm_actions, 'gripper_position': gripper_actions}
+
+        new_state = action_linear_interpolation(robot_obs, state)
+        for robot_id, new_robot_state in new_state.items():
+            robot_arm_dof = self.robot_arm_dof[robot_id]
+            robot_gripper_dof = self.robot_gripper_dof[robot_id]
+
+            arm_actions = new_robot_state['joint_position']
+            gripper_actions = new_robot_state['gripper_position']
+            gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
+            gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
+            gripper_actions = (gripper_actions[0] - gripper_raw_open_close_range[0]) / (
+                    gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) * (
+                                      gripper_normalized_open_close_range[1] -
+                                      gripper_normalized_open_close_range[0]) + \
+                              gripper_normalized_open_close_range[0]
+            for arm_action in arm_actions:
+                actions = [None] * (robot_arm_dof + robot_gripper_dof)
+                actions[:robot_arm_dof] = arm_action
+                actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
+                    [gripper_actions * self.gripper_signs[robot_id][0],
+                     gripper_actions * self.gripper_signs[robot_id][1]])
+                print(actions)
+                self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+
+        logger.info(f"Reset robot state: {state}")
 
     def run_key_listen(self):
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
@@ -200,7 +237,6 @@ class SimIsaacRobot(SimRobotInterface):
                 cube_initial_position_y = np.random.uniform(0.4, 0.5)
                 cube_initial_position = np.array([cube_initial_position_x, cube_initial_position_y, 0.1])
                 objs_pose = {'/World/Cube': cube_initial_position}
-                logger.info("objs_pose:", objs_pose)
                 stage = omni.usd.get_context().get_stage()
                 for obj_path, pose in objs_pose.items():
                     object_prim = stage.GetPrimAtPath(obj_path)
@@ -225,15 +261,7 @@ class SimIsaacRobot(SimRobotInterface):
         return self.robot_config["robot_ids"][0]
 
     def reset_robot_state(self):
-        state = {}
-        for i, robot_id in enumerate(self.robot_ids):
-            robot_arm_dof = self.robot_arm_dof[robot_id]
-            robot_gripper_dof = self.robot_gripper_dof[robot_id]
-            arm_actions = self.robot_zero_action[robot_id][:robot_arm_dof]
-            gripper_actions = self.robot_zero_action[robot_id][robot_arm_dof:robot_arm_dof + robot_gripper_dof]
-            state[robot_id] = {'joint_position': arm_actions, 'gripper_position': gripper_actions}
-        self.robot_state = state
-        logger.info(f"Reset robot state: {state}")
+        self.reset_robot_flag = True
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
@@ -255,7 +283,7 @@ class SimIsaacRobot(SimRobotInterface):
                     blocking: Union[bool, Dict[str, bool]] = False):
         pass
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         robot_state = {}
         for i, robot_id in enumerate(self.robot_ids):
             robot_state[robot_id] = {}

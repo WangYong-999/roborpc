@@ -36,7 +36,7 @@ class SimRobotInterface(RobotBase):
                     blocking: Union[bool, Dict[str, bool]] = False):
         pass
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         pass
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
@@ -98,7 +98,7 @@ class SimRobotRpcInterface(SimRobotInterface):
                     blocking: Union[bool, List[bool]] = False):
         self.robot.set_gripper(action, action_space, blocking)
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         return self.robot.get_robot_state()
 
     def get_dofs(self) -> Dict[str, int]:

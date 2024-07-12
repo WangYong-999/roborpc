@@ -88,7 +88,7 @@ class MultiRobots(RobotBase):
                            blocking[robot_id])
          for robot_id, robot in self.robots.items()]
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         robot_state = {}
         for robot_id, robot in self.robots.items():
             robot_state[robot_id] = robot.get_robot_state()

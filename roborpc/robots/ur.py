@@ -32,7 +32,7 @@ class UR(RobotBase):
                     blocking: Union[bool, Dict[str, bool]] = False):
         pass
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         pass
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:

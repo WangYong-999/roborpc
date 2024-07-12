@@ -53,7 +53,7 @@ class MutilRobotsRpc(RobotBase):
                           blocking: Union[bool, Dict[str, bool]] = False):
         self.robots.set_gripper(action, action_space, blocking)
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         return self.robots.get_robot_state()
 
     def get_dofs(self) -> Dict[str, int]:
@@ -158,7 +158,7 @@ class ComposedMultiRobots(RobotBase):
                 new_blocking.update({robot_id: blocking[robot_id]})
             multi_robots.set_gripper(new_action, new_action_space, new_blocking)
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         robot_states = {}
         for server_ip_address, multi_robots in self.composed_multi_robots.items():
             robot_states[server_ip_address] = multi_robots.get_robot_state()

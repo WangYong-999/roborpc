@@ -417,7 +417,7 @@ class SingleFrankaInterface2023:
             command = 10 if command > 0.5 else -10
         self.robot.gripper_velocities = np.concatenate([[command], [command]])
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         """Get the state of the robot.
 
         Returns:

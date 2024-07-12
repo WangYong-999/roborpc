@@ -1,5 +1,5 @@
 [roborpc.robot_env]
-env_update_rate = 30
+env_update_rate = 10
 use_controller = true
 
 ######### Robot Environment Configuration #########
@@ -128,9 +128,25 @@ robot_ids = [['panda_1']]
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['4097']
-usd_path = 'panda_robotiq85_ycb.usd'
+usd_path = 'panda.usd'
 
 [roborpc.sim_robots.isaac_sim.panda_1]
+robot_arm_dof = 7
+robot_gripper_dof = 2
+action_dof = 9
+robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.04, 0.04]
+robot_description_path = 'panda_robot_descriptor.yaml'
+rmpflow_config_path = 'panda_rmpflow_common.yaml'
+urdf_path = 'franka_panda.urdf'
+end_effector_frame_name = 'panda_link8'
+gripper_base_link_prim_path = '/World/franka/panda_hand'
+gripper_joint_prim_names = ["panda_finger_joint1", "panda_finger_joint2"]
+arm_base_link_prim_path = '/World/franka/panda_link0'
+gripper_raw_open_close_range = [0, 1]
+gripper_normalized_open_close_range = [0.04, 0]
+gripper_signs = [1, 1]
+
+[roborpc.sim_robots.isaac_sim.panda_2]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 15
@@ -144,8 +160,9 @@ gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
 arm_base_link_prim_path = '/World/franka/panda_link0'
 gripper_raw_open_close_range = [0, 1]
 gripper_normalized_open_close_range = [0, 1]
+gripper_signs = [1, 1]
 
-[roborpc.sim_robots.isaac_sim.panda_2]
+[roborpc.sim_robots.isaac_sim.panda_3]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 15
@@ -157,8 +174,9 @@ end_effector_frame_name = 'panda_link8'
 gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_01/Robotiq_2F_85/base_link'
 gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
 arm_base_link_prim_path = '/World/franka_01/panda_link0'
+gripper_signs = [1, 1]
 
-[roborpc.sim_robots.isaac_sim.panda_3]
+[roborpc.sim_robots.isaac_sim.panda_4]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 15
@@ -170,8 +188,9 @@ end_effector_frame_name = 'panda_link8'
 gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_02/Robotiq_2F_85/base_link'
 gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
 arm_base_link_prim_path = '/World/franka_02/panda_link0'
+gripper_signs = [1, 1]
 
-[roborpc.sim_robots.isaac_sim.panda_4]
+[roborpc.sim_robots.isaac_sim.panda_5]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 15
@@ -183,16 +202,8 @@ end_effector_frame_name = 'panda_link8'
 gripper_base_link_prim_path = '/World/Robotiq_2F_85_edit_03/Robotiq_2F_85/base_link'
 gripper_joint_prim_names = ["finger_joint", "right_outer_knuckle_joint"]
 arm_base_link_prim_path = '/World/franka_03/panda_link0'
+gripper_signs = [1, 1]
 
-[roborpc.sim_robots.isaac_sim.ur5e_1]
-robot_arm_dof = 6
-robot_gripper_dof = 2
-action_dof = 14
-robot_zero_action = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-robot_description_path = 'ur5e_robot_descriptor.yaml'
-rmpflow_config_path = 'ur5e_rmpflow_common.yaml'
-urdf_path = 'ur5e.urdf'
-end_effector_frame_name = 'tool0'
 
 [roborpc.sim_robots.isaac_sim.camera_1]
 camera_prim_path = '/World/franka/panda_link8/handeye_camera'
@@ -250,14 +261,4 @@ rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
 resolution = [640, 480]
 
-###### Kinematics Solver Configuration #########
-[roborpc.kinematics_solver.curobo_solver_kinematic]
-robot_cfg = 'rm75_6f.yml'
-world_cfg = 'collision_table.yml'
-robot_description = '/home/jz08/code_repo/roborpc/roborpc/robot_description/rm_description'
-
-[roborpc.motion_planning.curobo_planner]
-robot_cfg = 'rm75_6f.yml'
-world_cfg = 'collision_table.yml'
-robot_description = '/home/jz08/code_repo/roborpc/roborpc/robot_description/rm_description'
 

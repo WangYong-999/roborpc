@@ -191,7 +191,7 @@ class SimMujocoRobot(SimRobotInterface):
                     blocking: Union[bool, Dict[str, bool]] = False):
         return {}
 
-    def get_robot_state(self) -> Dict[str, List[float]]:
+    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         robot_state = {}
         for i, robot_id in enumerate(self.robot_ids):
             robot_state[robot_id] = {}
