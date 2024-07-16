@@ -1,6 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 10
-use_controller = true
+use_controller = false
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -8,7 +8,7 @@ use_controller = true
 # ON or OFF
 robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4097']
+sever_rpc_ports = ['4098']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -74,7 +74,7 @@ baudrate = 1000000
 # ON or OFF
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['4097']
+server_rpc_ports = ['4098']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
 camera_resolution = [640, 480]
@@ -127,14 +127,14 @@ camera_fps = 15
 robot_ids = [['panda_1']]
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4097']
+sever_rpc_ports = ['4098']
 usd_path = 'panda.usd'
 
 [roborpc.sim_robots.isaac_sim.panda_1]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 9
-robot_zero_action = [0.0, 0.4, 0.4, -1.0707963267948966, 0.6, 1.2707963267948966, 0.0, 0.04, 0.04]
+robot_zero_action = [ -0.001229998898153242, -0.78373070703473, 0.00033452204524119444, -2.3621342130897784, -0.002939444554553038, 1.5585773693838316, 0.7862526640851296, 0.04,0.04 ]
 robot_description_path = 'panda_robot_descriptor.yaml'
 rmpflow_config_path = 'panda_rmpflow_common.yaml'
 urdf_path = 'franka_panda.urdf'

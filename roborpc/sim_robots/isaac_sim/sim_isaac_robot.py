@@ -70,8 +70,10 @@ class SimIsaacRobot(SimRobotInterface):
                                 )
             self.my_world.add_task(my_task)
         self.my_world.reset()
+        self.robots = {}
         for robot_id in self.robot_ids:
             robot = self.my_world.scene.get_object(robot_id)
+            self.robots[robot_id] = robot
             self.my_controller[robot_id] = PickPlaceController(name=robot_id, robot_articulation=robot,
                                                                gripper=robot.gripper,
                                                                robot_description_path=self.robot_config[robot_id][
@@ -139,8 +141,11 @@ class SimIsaacRobot(SimRobotInterface):
                     logger.info("Resetting robots")
                     for i, robot_id in enumerate(self.robot_ids):
                         self.my_controller[robot_id].reset()
+                        self.robots[robot_id]._articulation_view.initialize()
                     self._reset_robot()
                     self.reset_robot_flag = False
+                if self.my_world.current_time_step_index < 20:
+                    continue
                 for camera_id in self.camera_ids:
                     try:
                         self.cameras_cache[camera_id]['color'] = np.asarray(self.viewports[camera_id].get_rgba(), dtype=np.uint8)
@@ -169,7 +174,6 @@ class SimIsaacRobot(SimRobotInterface):
                          gripper_actions * self.gripper_signs[robot_id][1]])
                     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
                     self.robot_state = {}
-                    print('aaaa')
         simulation_app.close()
 
     def _reset_robot(self):
@@ -204,8 +208,7 @@ class SimIsaacRobot(SimRobotInterface):
                 actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
                     [gripper_actions * self.gripper_signs[robot_id][0],
                      gripper_actions * self.gripper_signs[robot_id][1]])
-                print(actions)
-                self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                self.robots[robot_id].set_joint_positions(actions)
 
         logger.info(f"Reset robot state: {state}")
 
