@@ -43,7 +43,9 @@ class SimIsaacRobot(SimRobotInterface):
         self.my_world = World(stage_units_in_meters=1.0)
         self.button_pressed = False
         self.reset_robot_flag = False
+        self.reset_world_flag = False
 
+        self.env_update_rate = config['roborpc']['robot_env']['env_update_rate']
         self.robot_config = config['roborpc']['sim_robots']['isaac_sim']
         self.robot_ids = self.robot_config['robot_ids'][0]
         self.robot_arm_dof = {}
@@ -71,6 +73,8 @@ class SimIsaacRobot(SimRobotInterface):
             self.my_world.add_task(my_task)
         self.my_world.reset()
         self.robots = {}
+        self.stiffnesses = {}
+        self.dampings = {}
         for robot_id in self.robot_ids:
             robot = self.my_world.scene.get_object(robot_id)
             self.robots[robot_id] = robot
@@ -89,6 +93,8 @@ class SimIsaacRobot(SimRobotInterface):
             self.gripper_raw_open_close_range[robot_id] = self.robot_config[robot_id]['gripper_raw_open_close_range']
             self.gripper_normalized_open_close_range[robot_id] = self.robot_config[robot_id][
                 'gripper_normalized_open_close_range']
+            self.stiffnesses[robot_id] = self.robot_config[robot_id]['stiffnesses']
+            self.dampings[robot_id] = self.robot_config[robot_id]['dampings']
 
         self.camera_ids = self.robot_config['camera_ids'][0]
         self.viewports = {}
@@ -134,17 +140,22 @@ class SimIsaacRobot(SimRobotInterface):
             viewport.initialize()
             viewport.add_distance_to_image_plane_to_frame()
         while simulation_app.is_running():
+            if self.button_pressed:
+                self.my_world.reset()
+                self.reset_world_flag = True
             self.my_world.step(render=True)
             if self.my_world.is_playing():
+                start_time = time.time()
                 self.obs = self.my_world.get_observations()
                 if self.my_world.current_time_step_index <= 3 or self.reset_robot_flag:
                     logger.info("Resetting robots")
                     for i, robot_id in enumerate(self.robot_ids):
                         self.my_controller[robot_id].reset()
                         self.robots[robot_id]._articulation_view.initialize()
+                        self.robots[robot_id]._articulation_view.set_gains(kps=self.stiffnesses[robot_id], kds=self.dampings[robot_id])
                     self._reset_robot()
                     self.reset_robot_flag = False
-                if self.my_world.current_time_step_index < 20:
+                if self.my_world.current_time_step_index < 5:
                     continue
                 for camera_id in self.camera_ids:
                     try:
@@ -153,12 +164,13 @@ class SimIsaacRobot(SimRobotInterface):
                     except Exception as e:
                         logger.info(f"Error getting camera {camera_id} data: {e}")
                 for i, robot_id in enumerate(self.robot_ids):
-                    actions = []
                     robot = self.robot_state.get(robot_id, None)
                     if robot is None:
                         continue
                     robot_arm_dof = self.robot_arm_dof[robot_id]
                     robot_gripper_dof = self.robot_gripper_dof[robot_id]
+                    articulation_actions = [None] * (robot_arm_dof + robot_gripper_dof)
+                    actions = [None] * (robot_arm_dof + robot_gripper_dof)
                     arm_actions = robot.get("joint_position", np.nan * np.ones(robot_arm_dof))
                     normalized_gripper_actions = robot.get("gripper_position", np.nan * np.ones(robot_gripper_dof))
                     gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
@@ -173,7 +185,15 @@ class SimIsaacRobot(SimRobotInterface):
                         [gripper_actions * self.gripper_signs[robot_id][0],
                          gripper_actions * self.gripper_signs[robot_id][1]])
                     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                    # if gripper_actions < 0.04:
+                    #     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                    # else:
+                    #     self.robots[robot_id].set_joint_positions(actions)
                     self.robot_state = {}
+                    end_time = time.time()
+                    elapsed_time = end_time - start_time
+                    assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
+                    logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
         simulation_app.close()
 
     def _reset_robot(self):
@@ -235,7 +255,8 @@ class SimIsaacRobot(SimRobotInterface):
         Set the pose of the objects in the scene.
         """
         while True:
-            if self.button_pressed:
+            if self.reset_world_flag:
+                logger.info("Resetting scene objects")
                 cube_initial_position_x = np.random.uniform(0.4, 0.45)
                 cube_initial_position_y = np.random.uniform(0.4, 0.5)
                 cube_initial_position = np.array([cube_initial_position_x, cube_initial_position_y, 0.1])
@@ -250,6 +271,7 @@ class SimIsaacRobot(SimRobotInterface):
                     object_prim.GetAttribute("xformOp:translate").Set(Gf.Vec3f(pose[0], pose[1], pose[2]))
                     # object_prim.GetAttribute("xformOp:rotateXYZ").Set(Gf.Vec3f(pose[3], pose[4], pose[5]))
                 omni.kit.app.get_app().next_update_async()
+                self.reset_world_flag = False
             else:
                 time.sleep(0.1)
 

@@ -161,7 +161,7 @@ class IsaacSim:
             except (Exception,):
                 logger.error('Error in DaemonLauncher._listener_rpc: %s' % traceback.format_exc())
 
-        threading.Thread(target=_listener_rpc, name='RpcListener', daemon=False).start()
+        threading.Thread(target=_listener_rpc, name='RpcListener', daemon=True).start()
 
         # self.add_scene_object()
         # self.world.add_physics_callback("execute_step_callback_fn", callback_fn=self.execute_step_callback_fn)

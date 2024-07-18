@@ -72,7 +72,7 @@ class RobotEnv(gym.Env):
                     action_info[action_id].update({'cartesian_position': action_value})
                     pose = {action_id: action_value}
                     action_info[action_id].update({'joint_position': self.kinematic_solver.inverse_kinematics(pose)})
-                if action_space_id == 'joint_position':
+                elif action_space_id == 'joint_position':
                     if blocking is True:
                         blocking_info[action_id].update({'joint_position': True})
                     else:

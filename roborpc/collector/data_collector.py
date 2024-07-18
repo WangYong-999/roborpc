@@ -41,7 +41,7 @@ class DataCollector:
         if not os.path.isdir(self.failure_logdir):
             os.makedirs(self.failure_logdir)
             logger.info("Created directory for failed trajectories: {}".format(self.failure_logdir))
-        threading.Thread(target=self.visualize_timestep_loop, daemon=True).start()
+        threading.Thread(target=self.visualize_timestep_loop, daemon=False).start()
 
     def visualize_timestep_loop(self):
         while True:

@@ -1,6 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 10
-use_controller = false
+use_controller = true
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -8,7 +8,7 @@ use_controller = false
 # ON or OFF
 robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4098']
+sever_rpc_ports = ['4097']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -74,7 +74,7 @@ baudrate = 1000000
 # ON or OFF
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['4098']
+server_rpc_ports = ['4097']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
 camera_resolution = [640, 480]
@@ -127,8 +127,8 @@ camera_fps = 15
 robot_ids = [['panda_1']]
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4098']
-usd_path = 'panda.usd'
+sever_rpc_ports = ['4097']
+usd_path = 'panda_fix.usd'
 
 [roborpc.sim_robots.isaac_sim.panda_1]
 robot_arm_dof = 7
@@ -145,6 +145,8 @@ arm_base_link_prim_path = '/World/franka/panda_link0'
 gripper_raw_open_close_range = [0, 1]
 gripper_normalized_open_close_range = [0.04, 0]
 gripper_signs = [1, 1]
+stiffnesses = [100000, 100000, 100000, 100000, 80000, 80000, 80000, 50000, 50000]
+dampings = [8000, 8000, 8000, 8000, 5000, 5000, 5000, 2000, 2000]
 
 [roborpc.sim_robots.isaac_sim.panda_2]
 robot_arm_dof = 7
@@ -209,21 +211,21 @@ gripper_signs = [1, 1]
 camera_prim_path = '/World/franka/panda_link8/handeye_camera'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
-frequency = 20
+frequency = 60
 resolution = [640, 480]
 
 [roborpc.sim_robots.isaac_sim.camera_2]
 camera_prim_path = '/World/franka/panda_link0/varied_1_camera'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
-frequency = 20
+frequency = 60
 resolution = [640, 480]
 
 [roborpc.sim_robots.isaac_sim.camera_3]
 camera_prim_path = '/World/franka/panda_link0/varied_2_camera'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
-frequency = 20
+frequency = 60
 resolution = [640, 480]
 
 ######### Mujoco Robot Configuration #########
