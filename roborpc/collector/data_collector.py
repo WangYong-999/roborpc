@@ -175,12 +175,13 @@ class DataCollector:
 
             num_steps += 1
             end_traj = False
+            for controller_id, info in controller_info.items():
+                if info.get("success", True) and horizon is None:
+                    end_traj = True
+                if info.get("failure", False):
+                    end_traj = True
             if horizon is not None:
                 end_traj = horizon == num_steps
-            else:
-                for controller_id, info in controller_info.items():
-                    if info.get("success", True) or info.get("failure", True):
-                        end_traj = True
             if end_traj:
                 logger.info("Trajectory ended.")
                 if hdf5_file:

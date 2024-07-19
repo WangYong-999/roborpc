@@ -1,5 +1,6 @@
 import os
 import pickle
+import random
 import time
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from omni.isaac.core import World
 from tasks.pick_place import PickPlace
 from controllers.pick_place import PickPlaceController
 from omni.isaac.core.utils.types import ArticulationAction
+from omni.isaac.debug_draw import _debug_draw
 
 import threading
 import transforms3d as t3d
@@ -116,6 +118,7 @@ class SimIsaacRobot(SimRobotInterface):
             self.cameras_cache[camera_id]['color'] = np.zeros((resolution[0], resolution[1], 3), dtype=np.float32)
             self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
 
+        self.draw = _debug_draw.acquire_debug_draw_interface()
         robot_rpc = SimRobotRpcInterface(self)
 
         def _listener_rpc() -> None:
@@ -140,60 +143,71 @@ class SimIsaacRobot(SimRobotInterface):
             viewport.initialize()
             viewport.add_distance_to_image_plane_to_frame()
         while simulation_app.is_running():
-            if self.button_pressed:
-                self.my_world.reset()
-                self.reset_world_flag = True
-            self.my_world.step(render=True)
-            if self.my_world.is_playing():
-                start_time = time.time()
-                self.obs = self.my_world.get_observations()
-                if self.my_world.current_time_step_index <= 3 or self.reset_robot_flag:
-                    logger.info("Resetting robots")
-                    for i, robot_id in enumerate(self.robot_ids):
-                        self.my_controller[robot_id].reset()
-                        self.robots[robot_id]._articulation_view.initialize()
-                        self.robots[robot_id]._articulation_view.set_gains(kps=self.stiffnesses[robot_id], kds=self.dampings[robot_id])
-                    self._reset_robot()
-                    self.reset_robot_flag = False
-                if self.my_world.current_time_step_index < 5:
-                    continue
-                for camera_id in self.camera_ids:
-                    try:
-                        self.cameras_cache[camera_id]['color'] = np.asarray(self.viewports[camera_id].get_rgba(), dtype=np.uint8)
-                        self.cameras_cache[camera_id]['depth'] = np.asarray(self.viewports[camera_id].get_depth(), dtype=np.uint8)
-                    except Exception as e:
-                        logger.info(f"Error getting camera {camera_id} data: {e}")
-                for i, robot_id in enumerate(self.robot_ids):
-                    robot = self.robot_state.get(robot_id, None)
-                    if robot is None:
+            try:
+                if self.button_pressed:
+                    self.my_world.reset()
+                    self.reset_world_flag = True
+                self.my_world.step(render=True)
+                if self.my_world.is_playing():
+                    start_time = time.time()
+                    self.obs = self.my_world.get_observations()
+                    if self.my_world.current_time_step_index <= 3 or self.reset_robot_flag:
+                        logger.info("Resetting robots")
+                        for i, robot_id in enumerate(self.robot_ids):
+                            self.my_controller[robot_id].reset()
+                            self.robots[robot_id]._articulation_view.initialize()
+                            # self.robots[robot_id]._articulation_view.set_gains(kps=self.stiffnesses[robot_id], kds=self.dampings[robot_id])
+                        self._reset_robot()
+                        self.reset_robot_flag = False
+                    if self.my_world.current_time_step_index < 5:
                         continue
-                    robot_arm_dof = self.robot_arm_dof[robot_id]
-                    robot_gripper_dof = self.robot_gripper_dof[robot_id]
-                    articulation_actions = [None] * (robot_arm_dof + robot_gripper_dof)
-                    actions = [None] * (robot_arm_dof + robot_gripper_dof)
-                    arm_actions = robot.get("joint_position", np.nan * np.ones(robot_arm_dof))
-                    normalized_gripper_actions = robot.get("gripper_position", np.nan * np.ones(robot_gripper_dof))
-                    gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
-                    gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
-                    gripper_actions = (normalized_gripper_actions[0] - gripper_raw_open_close_range[0]) / (
-                            gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) * (
-                                              gripper_normalized_open_close_range[1] -
-                                              gripper_normalized_open_close_range[0]) + \
-                                      gripper_normalized_open_close_range[0]
-                    actions[:robot_arm_dof] = arm_actions
-                    actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
-                        [gripper_actions * self.gripper_signs[robot_id][0],
-                         gripper_actions * self.gripper_signs[robot_id][1]])
-                    self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
-                    # if gripper_actions < 0.04:
-                    #     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
-                    # else:
-                    #     self.robots[robot_id].set_joint_positions(actions)
-                    self.robot_state = {}
-                    end_time = time.time()
-                    elapsed_time = end_time - start_time
-                    assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
-                    logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
+                    for camera_id in self.camera_ids:
+                        try:
+                            self.cameras_cache[camera_id]['color'] = np.asarray(self.viewports[camera_id].get_rgba(), dtype=np.uint8)
+                            self.cameras_cache[camera_id]['depth'] = np.asarray(self.viewports[camera_id].get_depth(), dtype=np.uint8)
+                        except Exception as e:
+                            logger.info(f"Error getting camera {camera_id} data: {e}")
+                    for i, robot_id in enumerate(self.robot_ids):
+                        # start_point = self.obs[robot_id]["end_effector_position"]
+                        # end_point = start_point + np.array([0, 0, -1])
+                        # point_list_1 = [(start_point[0], start_point[1], start_point[2])]
+                        # point_list_2 = [(end_point[0], end_point[1], end_point[2])]
+                        # colors = [(0, 0, 1, 1)]
+                        # sizes = [1]
+                        # self.draw.draw_lines(point_list_1, point_list_2, colors, sizes)
+                        robot = self.robot_state.get(robot_id, None)
+                        if robot is None:
+                            continue
+                        robot_arm_dof = self.robot_arm_dof[robot_id]
+                        robot_gripper_dof = self.robot_gripper_dof[robot_id]
+                        articulation_actions = [None] * (robot_arm_dof + robot_gripper_dof)
+                        actions = [None] * (robot_arm_dof + robot_gripper_dof)
+                        arm_actions = robot.get("joint_position", np.nan * np.ones(robot_arm_dof))
+                        normalized_gripper_actions = robot.get("gripper_position", np.nan * np.ones(robot_gripper_dof))
+                        gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]
+                        gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
+                        gripper_actions = (normalized_gripper_actions[0] - gripper_raw_open_close_range[0]) / (
+                                gripper_raw_open_close_range[1] - gripper_raw_open_close_range[0]) * (
+                                                  gripper_normalized_open_close_range[1] -
+                                                  gripper_normalized_open_close_range[0]) + \
+                                          gripper_normalized_open_close_range[0]
+                        actions[:robot_arm_dof] = arm_actions
+                        actions[robot_arm_dof:robot_arm_dof + robot_gripper_dof] = np.asarray(
+                            [gripper_actions * self.gripper_signs[robot_id][0],
+                             gripper_actions * self.gripper_signs[robot_id][1]])
+                        self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                        # if gripper_actions < 0.04:
+                        #     self.articulation_controller[robot_id].apply_action(ArticulationAction(joint_positions=actions))
+                        # else:
+                        #     self.robots[robot_id].set_joint_positions(actions)
+                        self.robot_state = {}
+                        end_time = time.time()
+                        elapsed_time = end_time - start_time
+                        assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
+                        logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
+            except (Exception,):
+                logger.error('Error in SimIsaacRobot._sim_loop: %s' % traceback.format_exc())
+                break
         simulation_app.close()
 
     def _reset_robot(self):
