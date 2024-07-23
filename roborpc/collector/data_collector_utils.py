@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from collections import defaultdict
@@ -259,3 +260,61 @@ class TrajectoryWriter:
         time.sleep(2)
         self._open = False
         self._hdf5_file.close()
+
+
+def crawler(dir_name, filter_func=None):
+    subfolders = [f.path for f in os.scandir(dir_name) if f.is_dir()]
+    traj_files = [f.path for f in os.scandir(dir_name) if (f.is_file() and "trajectory.h5" in f.path)]
+
+    if len(traj_files):
+        # Only Save Desired Data #
+        if filter_func is None:
+            use_data = True
+        else:
+            hdf5_file = h5py.File(traj_files[0], "r")
+            use_data = filter_func(hdf5_file.attrs)
+            hdf5_file.close()
+
+        if use_data:
+            return [dir_name]
+
+    all_folder_paths = []
+    for child_dir_name in subfolders:
+        child_paths = crawler(child_dir_name, filter_func=filter_func)
+        all_folder_paths.extend(child_paths)
+
+    return all_folder_paths
+
+
+def load_trajectory(
+        filepath=None,
+        remove_skipped_steps=False,
+        num_samples_per_traj=None,
+        num_samples_per_traj_coeff=1.5,
+):
+    traj_reader = TrajectoryReader(filepath)
+
+    horizon = traj_reader.length()
+    timestep_list = []
+
+    if num_samples_per_traj:
+        num_to_save = num_samples_per_traj
+        if remove_skipped_steps:
+            num_to_save = int(num_to_save * num_samples_per_traj_coeff)
+        max_size = min(num_to_save, horizon)
+        indices_to_save = np.sort(np.random.choice(horizon, size=max_size, replace=False))
+    else:
+        indices_to_save = np.arange(horizon)
+
+    for i in indices_to_save:
+        timestep = traj_reader.read_timestep(index=i)
+        timestep_list.append(timestep)
+
+    timestep_list = np.array(timestep_list)
+    if (num_samples_per_traj is not None) and (len(timestep_list) > num_samples_per_traj):
+        ind_to_keep = np.random.choice(len(timestep_list), size=num_samples_per_traj, replace=False)
+        timestep_list = timestep_list[ind_to_keep]
+
+    traj_reader.close()
+
+    return timestep_list

@@ -9,18 +9,19 @@ from omni.isaac.kit import SimulationApp
 from roborpc.common.config_loader import config
 from roborpc.kinematics_solver.trajectory_interpolation import action_linear_interpolation
 
-simulation_app = SimulationApp({"headless": False})
+simulation_app = SimulationApp({"headless": False, "open_usd":
+    os.path.join(Path(__file__).parent, f"usds/robots/{config['roborpc']['sim_robots']['isaac_sim']['robot_usd_path']}")})
 
 import traceback
 import omni
 from omni.isaac.sensor import Camera
 from pxr import Gf, UsdGeom
 from omni.isaac.core.prims import XFormPrim
-from omni.isaac.core.utils.nucleus import get_assets_root_path
-from omni.isaac.core.utils.stage import add_reference_to_stage, get_stage_units
-from omni.isaac.core.robots import Robot
+from omni.isaac.core.utils.stage import add_reference_to_stage
 
 from omni.isaac.core import World
+from tasks.pick_place import PickPlace
+from controllers.pick_place import PickPlaceController
 from omni.isaac.core.utils.types import ArticulationAction
 from omni.isaac.debug_draw import _debug_draw
 
@@ -43,7 +44,6 @@ class SimIsaacRobot(SimRobotInterface):
         self.gripper_raw_open_close_range = {}
         self.gripper_normalized_open_close_range = {}
         self.my_world = World(stage_units_in_meters=1.0)
-
         self.button_pressed = False
         self.reset_robot_flag = False
         self.reset_world_flag = False
@@ -58,54 +58,66 @@ class SimIsaacRobot(SimRobotInterface):
         self.articulation_controller = {}
         self.action_dof = {}
         self.gripper_signs = {}
-        self.robots = {}
-        self.stiffnesses = {}
-        self.dampings = {}
-        scene_usd_path = os.path.join(Path(__file__).parent,
-                                      f"usds/scenes/{config['roborpc']['sim_robots']['isaac_sim']['scene_usd_path']}")
-        robot_usd_path = os.path.join(Path(__file__).parent,
-                                      f"usds/robots/{config['roborpc']['sim_robots']['isaac_sim']['robot_usd_path']}")
-        add_reference_to_stage(usd_path=scene_usd_path, prim_path="/World")
         for robot_id in self.robot_ids:
             logger.info(f"Loading robot {robot_id}")
-            add_reference_to_stage(usd_path=get_assets_root_path() + "/Isaac/Robots/Franka/franka_alt_fingers.usd", prim_path=f"/World/{robot_id}")
             self.gripper_signs[robot_id] = self.robot_config[robot_id]['gripper_signs']
             self.robot_arm_dof[robot_id] = self.robot_config[robot_id]['robot_arm_dof']
             self.robot_gripper_dof[robot_id] = self.robot_config[robot_id]['robot_gripper_dof']
             self.robot_zero_action[robot_id] = self.robot_config[robot_id]['robot_zero_action']
             self.action_dof[robot_id] = self.robot_config[robot_id]['action_dof']
-
-            self.robots[robot_id] = self.my_world.scene.add(Robot(prim_path=f"/World/{robot_id}", name=robot_id))
+            cube_initial_position_x = np.random.uniform(0.4, 0.45)
+            cube_initial_position_y = np.random.uniform(0.4, 0.5)
+            my_task = PickPlace(name=robot_id,
+                                cube_initial_position=np.array([cube_initial_position_x, cube_initial_position_y, 0.5]),
+                                gripper_base_link_prim_path=self.robot_config[robot_id]['gripper_base_link_prim_path'],
+                                gripper_joint_prim_names=self.robot_config[robot_id]['gripper_joint_prim_names'],
+                                arm_base_link_prim_path=self.robot_config[robot_id]['arm_base_link_prim_path'],
+                                )
+            self.my_world.add_task(my_task)
+        self.my_world.reset()
+        self.robots = {}
+        self.stiffnesses = {}
+        self.dampings = {}
+        for robot_id in self.robot_ids:
+            robot = self.my_world.scene.get_object(robot_id)
+            self.robots[robot_id] = robot
+            self.my_controller[robot_id] = PickPlaceController(name=robot_id, robot_articulation=robot,
+                                                               gripper=robot.gripper,
+                                                               robot_description_path=self.robot_config[robot_id][
+                                                                   'robot_description_path'],
+                                                               rmpflow_config_path=self.robot_config[robot_id][
+                                                                   'rmpflow_config_path'],
+                                                               urdf_path=self.robot_config[robot_id]['urdf_path'],
+                                                               end_effector_frame_name=self.robot_config[robot_id][
+                                                                   'end_effector_frame_name'],
+                                                               )
+            self.articulation_controller[robot_id] = robot.get_articulation_controller()
 
             self.gripper_raw_open_close_range[robot_id] = self.robot_config[robot_id]['gripper_raw_open_close_range']
             self.gripper_normalized_open_close_range[robot_id] = self.robot_config[robot_id][
                 'gripper_normalized_open_close_range']
             self.stiffnesses[robot_id] = self.robot_config[robot_id]['stiffnesses']
             self.dampings[robot_id] = self.robot_config[robot_id]['dampings']
-        self.my_world.reset()
-        for robot_id in self.robot_ids:
-            self.robots[robot_id].set_world_pose(position=np.array(self.robot_config[robot_id]['base_word_pose']) / get_stage_units())
-            self.articulation_controller[robot_id] = self.robots[robot_id].get_articulation_controller()
 
         self.camera_ids = self.robot_config['camera_ids'][0]
         self.viewports = {}
         self.cameras_xform = {}
         self.cameras_cache = {}
-        # for camera_id in self.camera_ids:
-        #     self.cameras_cache[camera_id] = {}
-        #     camera_prim_path = self.robot_config[camera_id]['camera_prim_path']
-        #     frequency = self.robot_config[camera_id]['frequency']
-        #     resolution = (self.robot_config[camera_id]['resolution'][0], self.robot_config[camera_id]['resolution'][1])
-        #     self.cameras_xform[camera_id] = XFormPrim(prim_path=camera_prim_path)
-        #     self.viewports[camera_id] = Camera(
-        #         prim_path=camera_prim_path,
-        #         frequency=frequency,
-        #         resolution=resolution,
-        #         # position=np.array([-0.07295, 0.03137, 0.00037]),
-        #         # orientation=rot_utils.euler_angles_to_quats(np.array([122.225, -18.567, -167.487]), degrees=True),
-        #     )
-        #     self.cameras_cache[camera_id]['color'] = np.zeros((resolution[0], resolution[1], 3), dtype=np.float32)
-        #     self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
+        for camera_id in self.camera_ids:
+            self.cameras_cache[camera_id] = {}
+            camera_prim_path = self.robot_config[camera_id]['camera_prim_path']
+            frequency = self.robot_config[camera_id]['frequency']
+            resolution = (self.robot_config[camera_id]['resolution'][0], self.robot_config[camera_id]['resolution'][1])
+            self.cameras_xform[camera_id] = XFormPrim(prim_path=camera_prim_path)
+            self.viewports[camera_id] = Camera(
+                prim_path=camera_prim_path,
+                frequency=frequency,
+                resolution=resolution,
+                # position=np.array([-0.07295, 0.03137, 0.00037]),
+                # orientation=rot_utils.euler_angles_to_quats(np.array([122.225, -18.567, -167.487]), degrees=True),
+            )
+            self.cameras_cache[camera_id]['color'] = np.zeros((resolution[0], resolution[1], 3), dtype=np.float32)
+            self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
 
         self.draw = _debug_draw.acquire_debug_draw_interface()
         robot_rpc = SimRobotRpcInterface(self)
@@ -143,6 +155,7 @@ class SimIsaacRobot(SimRobotInterface):
                     if self.my_world.current_time_step_index <= 3 or self.reset_robot_flag:
                         logger.info("Resetting robots")
                         for i, robot_id in enumerate(self.robot_ids):
+                            self.my_controller[robot_id].reset()
                             self.robots[robot_id]._articulation_view.initialize()
                             # self.robots[robot_id]._articulation_view.set_gains(kps=self.stiffnesses[robot_id], kds=self.dampings[robot_id])
                         self._reset_robot()
@@ -267,7 +280,7 @@ class SimIsaacRobot(SimRobotInterface):
                 cube_initial_position_y = np.random.uniform(-0.4, 0.4)
                 cube_initial_rotation_z = np.random.uniform(-180, 180)
                 cube_initial_position = np.array([cube_initial_position_x, cube_initial_position_y, 0.1, 0, 0, cube_initial_rotation_z])
-                objs_pose = {'/World/_06_mustard_bottle': cube_initial_position}
+                objs_pose = {'/World/_06_mustard_bottle': cube_initial_position, '/World/Cube': np.array([5, 5, 0.1, 0, 0, 0])}
                 stage = omni.usd.get_context().get_stage()
                 for obj_path, pose in objs_pose.items():
                     object_prim = stage.GetPrimAtPath(obj_path)
@@ -321,9 +334,8 @@ class SimIsaacRobot(SimRobotInterface):
             robot_state[robot_id] = {}
             robot_arm_dof = self.robot_arm_dof[robot_id]
             robot_gripper_dof = self.robot_gripper_dof[robot_id]
-            robot_positions = self.robots[robot_id].get_joint_positions()
-            joint_positions = robot_positions[:robot_arm_dof]
-            gripper_positions = robot_positions[robot_arm_dof:robot_arm_dof + 1]
+            joint_positions = self.obs[robot_id]["joint_positions"][:robot_arm_dof]
+            gripper_positions = self.obs[robot_id]["joint_positions"][robot_arm_dof:robot_arm_dof + 1]
             # gripper_raw_open_close_range -> gripper_normalized_open_close_range
             gripper_normalized_open_close_range = self.gripper_normalized_open_close_range[robot_id]
             gripper_raw_open_close_range = self.gripper_raw_open_close_range[robot_id]

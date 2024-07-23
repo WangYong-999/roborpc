@@ -1,20 +1,14 @@
 from typing import Iterator, Tuple, Any
 
 import numpy as np
-import tensorflow as tf
 import tensorflow_datasets as tfds
 import os
 from PIL import Image
 
-from droid.droid_utils import load_trajectory, crawler
-from droid.tfds_utils import MultiThreadedDatasetBuilder
+from roborpc.collector.data_collector_utils import load_trajectory, crawler
+from roborpc.data_convert.tfds_utils import MultiThreadedDatasetBuilder
 
-# We assume a fixed language instruction here -- if your dataset has various instructions, please modify
 LANGUAGE_INSTRUCTION = "close the box"
-save_data_mode = "H5_SVO"  # H5_SVO or H5_FULL or H5_MP4
-# Modify to point to directory with raw DROID MP4 data
-#DATA_PATH = "/mnt/HDD/droid/data/success/2024-05-06_take the potato chips out of the drawer"
-
 DATA_PATH = "/mnt/HDD/droid/data/success/2024-05-07_close the box"
 
 TRAIN_DATA_PATH = os.path.join(DATA_PATH, 'train')
@@ -34,7 +28,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
 
         try:
             data = load_trajectory(h5_filepath)
-        except:
+        except (Exception, ):
             print(f"Skipping trajectory because data couldn't be loaded for {episode_path}.")
             return None
 
@@ -44,7 +38,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
         try:
             assert all(t.keys() == data[0].keys() for t in data)
             for t in range(len(data)):
-                for key in data[0]['observation']['image'].keys():
+                for key in data[0]['observation']['color'].keys():
                     data[t]['observation']['image'][key] = _resize_and_encode(
                         data[t]['observation']['image'][key], (IMAGE_RES[1], IMAGE_RES[0])
                     )
@@ -102,8 +96,9 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
     for sample in paths:
         yield _parse_example(sample)
 
+_generate_examples()
 
-class MRCTaskDataset(MultiThreadedDatasetBuilder):
+class MultiTaskDataset(MultiThreadedDatasetBuilder):
     """DatasetBuilder for example dataset."""
 
     VERSION = tfds.core.Version('1.0.0')
@@ -247,11 +242,9 @@ class MRCTaskDataset(MultiThreadedDatasetBuilder):
         # add more elements to the dict below if you have more splits in your data
         print("Crawling all episode paths...")
         train_episode_paths = crawler(TRAIN_DATA_PATH)
-        train_episode_paths = [p for p in train_episode_paths if os.path.exists(p + '/trajectory.h5') and \
-                               os.path.exists(p + '/recordings/MP4')]
+        train_episode_paths = [p for p in train_episode_paths if os.path.exists(p + '/trajectory.h5')]
         valid_episode_paths = crawler(VALID_DATA_PATH)
-        valid_episode_paths = [p for p in valid_episode_paths if os.path.exists(p + '/trajectory.h5') and \
-                               os.path.exists(p + '/recordings/MP4')]
+        valid_episode_paths = [p for p in valid_episode_paths if os.path.exists(p + '/trajectory.h5')]
         print(f"Found train {len(train_episode_paths)} episodes!")
         print(f"Found valid {len(valid_episode_paths)} episodes!")
         return {

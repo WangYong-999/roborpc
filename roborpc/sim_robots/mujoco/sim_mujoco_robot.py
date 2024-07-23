@@ -1,6 +1,7 @@
 import argparse
 import pickle
 import threading
+import time
 import traceback
 from collections import OrderedDict
 from typing import Union, Dict, List
@@ -14,7 +15,8 @@ from roborpc.common.config_loader import config
 import robosuite
 from robosuite import load_controller_config
 from robosuite.wrappers import VisualizationWrapper
-
+from pynput import keyboard
+from pynput.keyboard import Key
 
 class SimMujocoRobot(SimRobotInterface):
 
@@ -49,6 +51,10 @@ class SimMujocoRobot(SimRobotInterface):
         ])
 
         self.robot_config = config['roborpc']['sim_robots']['mujoco']
+        self.env_update_rate = config['roborpc']['robot_env']['env_update_rate']
+        self.button_pressed = False
+        self.reset_robot_flag = False
+        self.reset_world_flag = False
         self.blocking = {}
         self.robot_state = {}
         self.gripper_raw_open_close_range = {}
@@ -93,7 +99,7 @@ class SimMujocoRobot(SimRobotInterface):
             hard_reset=False,
         )
         self.env = VisualizationWrapper(self.env)
-        self.env.viewer.set_camera(camera_id=0)
+        self.env.viewer.set_camera(camera_id=2)
         self.env.reset()
         logger.success(f"Mujoco Task: {args.task}, Instruction: {self.env.get_ep_meta().get('lang', None)}")
 
@@ -109,24 +115,27 @@ class SimMujocoRobot(SimRobotInterface):
             except (Exception,):
                 logger.error('Error in DaemonLauncher._listener_rpc: %s' % traceback.format_exc())
 
+        threading.Thread(target=self.run_key_listen).start()
+        threading.Thread(target=self.random_scene_objects_pose, name='RandomObjectsPose', daemon=False).start()
         threading.Thread(target=_listener_rpc, name='RpcListener', daemon=False).start()
         logger.success(f"Mujoco Robot RPC Server started on port {self.robot_config['sever_rpc_ports'][0]}")
 
         self._sim_loop()
 
     def _sim_loop(self):
-        for _ in range(100):
-            self.env.render()
-            for i, robot_id in enumerate(self.robot_ids):
-                self.obs, _, _, _ = self.env.step(np.asarray(self.robot_config[robot_id]['robot_zero_action']),
-                                                  set_qpos=self.robot_config[robot_id]['robot_zero_action'])
+        self._reset_robot()
         task_completion_hold_count = -1
         n_actions = 1000
         actions = []
 
         while True:
+            if self.reset_world_flag:
+                self.env.reset()
+                self._reset_robot()
+                self.reset_world_flag = False
             self.env.render()
             for i, robot_id in enumerate(self.robot_ids):
+                start_time = time.time()
                 robot = self.robot_state.get(robot_id, None)
                 if robot is None:
                     continue
@@ -157,6 +166,48 @@ class SimMujocoRobot(SimRobotInterface):
                             task_completion_hold_count = 10
                     else:
                         task_completion_hold_count = -1
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
+                # logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
+
+    def _reset_robot(self):
+        for _ in range(100):
+            self.env.render()
+            for i, robot_id in enumerate(self.robot_ids):
+                self.obs, _, _, _ = self.env.step(np.asarray(self.robot_config[robot_id]['robot_zero_action']),
+                                                  set_qpos=self.robot_config[robot_id]['robot_zero_action'])
+        self.robot_state = {}
+
+    def run_key_listen(self):
+        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
+            listener.join()
+
+    def on_press(self, key):
+        try:
+            if key == Key.down:
+                self.button_pressed = True
+        except AttributeError:
+            logger.error(f"Unknown key {key}")
+
+    def on_release(self, key):
+        try:
+            if key == Key.down:
+                self.button_pressed = False
+        except AttributeError:
+            logger.error(f"Unknown key {key}")
+
+    def random_scene_objects_pose(self):
+        """
+        Set the pose of the objects in the scene.
+        """
+        while True:
+            if self.button_pressed:
+                logger.info("Resetting scene objects")
+                self.reset_world_flag = True
+                time.sleep(0.05)
+            else:
+                time.sleep(0.1)
 
     def connect_now(self):
         logger.info("Connect SimMujocoRobot")

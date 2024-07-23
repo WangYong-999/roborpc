@@ -1,13 +1,10 @@
 import argparse
-import droid
 import tqdm
 import importlib
-import os
 import tensorflow_datasets as tfds
 import numpy as np
 import matplotlib.pyplot as plt
 import wandb
-import tensorflow as tf
 
 WANDB_ENTITY = 'your_entity'
 WANDB_PROJECT = 'vis_rlds'

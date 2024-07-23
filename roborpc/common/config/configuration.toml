@@ -8,7 +8,7 @@ use_controller = true
 # ON or OFF
 robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4097']
+sever_rpc_ports = ['4098']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -74,7 +74,7 @@ baudrate = 1000000
 # ON or OFF
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['4097']
+server_rpc_ports = ['4098']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
 camera_resolution = [640, 480]
@@ -117,7 +117,7 @@ use_zed_save_mp4 = false # for H5_MP4
 save_audio = false
 max_timesteps = 0 # 0 (not used) 1000
 dt = 0.02 # act used
-horizon = 150 # 0 for not used
+horizon = 300 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 
@@ -127,14 +127,23 @@ camera_fps = 15
 robot_ids = [['panda_1']]
 camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['4097']
-usd_path = 'panda_fix.usd'
+sever_rpc_ports = ['4098']
+scene_usd_path = 'mustard_bottle.usd'
+robot_usd_path = 'panda_fix_with_pull_bottle.usd'
 
 [roborpc.sim_robots.isaac_sim.panda_1]
 robot_arm_dof = 7
 robot_gripper_dof = 2
 action_dof = 9
 robot_zero_action = [ -0.001229998898153242, -0.78373070703473, 0.00033452204524119444, -2.3621342130897784, -0.002939444554553038, 1.5585773693838316, 0.7862526640851296, 0.04,0.04 ]
+gripper_raw_open_close_range = [0, 1]
+gripper_normalized_open_close_range = [0.04, 0]
+gripper_signs = [1, 1]
+stiffnesses = [100000, 100000, 100000, 100000, 80000, 80000, 80000, 50000, 50000]
+dampings = [8000, 8000, 8000, 8000, 5000, 5000, 5000, 2000, 2000]
+base_word_pose = [0.0, 0.0, 0.0]
+
+# for task
 robot_description_path = 'panda_robot_descriptor.yaml'
 rmpflow_config_path = 'panda_rmpflow_common.yaml'
 urdf_path = 'franka_panda.urdf'
@@ -142,11 +151,7 @@ end_effector_frame_name = 'panda_link8'
 gripper_base_link_prim_path = '/World/franka/panda_hand'
 gripper_joint_prim_names = ["panda_finger_joint1", "panda_finger_joint2"]
 arm_base_link_prim_path = '/World/franka/panda_link0'
-gripper_raw_open_close_range = [0, 1]
-gripper_normalized_open_close_range = [0.04, 0]
-gripper_signs = [1, 1]
-stiffnesses = [100000, 100000, 100000, 100000, 80000, 80000, 80000, 50000, 50000]
-dampings = [8000, 8000, 8000, 8000, 5000, 5000, 5000, 2000, 2000]
+
 
 [roborpc.sim_robots.isaac_sim.panda_2]
 robot_arm_dof = 7
@@ -238,7 +243,8 @@ sever_rpc_ports = ['4098']
 [roborpc.sim_robots.mujoco.panda_1]
 robot_arm_dof = 7
 robot_gripper_dof = 1
-robot_zero_action = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+robot_zero_action = [ -0.001229998898153242, -0.78373070703473, 0.00033452204524119444, -2.3621342130897784, -0.002939444554553038, 1.5585773693838316, 0.7862526640851296, 0.0]
+#robot_zero_action = [0.00541805,  0.16084542,  0.02540027, -2.57049875,  0.01243444, 2.92530504,  0.80107014, 0.0]
 gripper_raw_open_close_range = [0, 1]
 gripper_normalized_open_close_range = [-1, 1]
 
@@ -250,14 +256,14 @@ frequency = 20
 resolution = [640, 480]
 
 [roborpc.sim_robots.mujoco.camera_2]
-viewports = 'robot0_robotview'
+viewports = 'robot0_robotview' # robot0_robotview for Lift and Insert, agentview for other tasks
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
 resolution = [640, 480]
 
 [roborpc.sim_robots.mujoco.camera_3]
-viewports = 'agentview'
+viewports = 'frontview'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20

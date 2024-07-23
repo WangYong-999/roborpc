@@ -12,10 +12,7 @@ dm_control
 Pillow
 pygame
 pyspacemouse
-PyQt6
 pyquaternion
-pyrealsense2
-pure-python-adb
 quaternion
 tyro
 ur-rtde
@@ -26,3 +23,6 @@ termcolor
 opencv-python==4.6.0.66
 opencv-contrib-python==4.6.0.66
 matplotlib
+tensorflow==2.13.0
+tensorflow-datasets==4.9.2
+plotly==5.15.0
