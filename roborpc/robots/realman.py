@@ -78,7 +78,7 @@ class RealMan(RobotBase):
         # TODO: gripper bug
         robot_state = {"joint_position": self.get_joint_positions(),
                        "gripper_position": self.get_gripper_position(),
-                       "ee_pose": self.get_ee_pose()}
+                       "cartesian_position": self.get_ee_pose()}
         return robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:

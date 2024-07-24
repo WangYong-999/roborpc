@@ -26,3 +26,5 @@ matplotlib
 tensorflow==2.13.0
 tensorflow-datasets==4.9.2
 plotly==5.15.0
+torch==1.12.1+cu113
+torchvision==0.13.1+cu113

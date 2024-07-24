@@ -9,7 +9,7 @@ from roborpc.collector.data_collector_utils import load_trajectory, crawler
 from roborpc.data_convert.tfds_utils import MultiThreadedDatasetBuilder
 
 LANGUAGE_INSTRUCTION = "close the box"
-DATA_PATH = "/mnt/HDD/droid/data/success/2024-05-07_close the box"
+DATA_PATH = "/media/jz08/SSD1/Log/droid/multi_task_dataset/Turn the handle and open the door"
 
 TRAIN_DATA_PATH = os.path.join(DATA_PATH, 'train')
 VALID_DATA_PATH = os.path.join(DATA_PATH, 'valid')
@@ -25,10 +25,10 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
 
     def _parse_example(episode_path):
         h5_filepath = os.path.join(episode_path, 'trajectory.h5')
-
+        kinematic_solver = {}
         try:
             data = load_trajectory(h5_filepath)
-        except (Exception, ):
+        except (Exception,):
             print(f"Skipping trajectory because data couldn't be loaded for {episode_path}.")
             return None
 
@@ -37,40 +37,63 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
 
         try:
             assert all(t.keys() == data[0].keys() for t in data)
-            for t in range(len(data)):
-                for key in data[0]['observation']['color'].keys():
-                    data[t]['observation']['image'][key] = _resize_and_encode(
-                        data[t]['observation']['image'][key], (IMAGE_RES[1], IMAGE_RES[0])
-                    )
+            camera_keys = [k for k in data[0]['observation'].keys() if 'camera' in k]
+            robot_keys = [k for k in data[0]['observation'].keys() if not ('camera' in k or 'timestamp' in k)]
+            # for t in range(len(data)):
+            #     for key in camera_keys:
+            #         data[t]['observation'][key]['color'] = _resize_and_encode(
+            #             data[t]['observation'][key]['color'], (IMAGE_RES[1], IMAGE_RES[0])
+            #         )
 
             # assemble episode --> here we're assuming demos so we set reward to 1 at the end
             episode = []
+            episode_dict = {}
+            for key in robot_keys:
+                if 'cartesian_position' not in data[0]['observation'][key].keys():
+                    if key.startswith('realman'):
+                        kinematic_solver['realman'] = CuroboSolverKinematic('realman')
+                    elif key.startswith('panda'):
+                        kinematic_solver['panda'] = CuroboSolverKinematic('panda')
 
             for i, step in enumerate(data):
                 obs = step['observation']
                 action = step['action']
-                camera_type_dict = obs['camera_type']
-                wrist_ids = [k for k, v in camera_type_dict.items() if v == 0]
-                exterior_ids = [k for k, v in camera_type_dict.items() if v != 0]
 
-                episode.append({
-                    'observation': {
-                        'exterior_image_1_left': obs['image'][f'{exterior_ids[0]}_left'][..., ::-1],
-                        'exterior_image_2_left': obs['image'][f'{exterior_ids[1]}_left'][..., ::-1],
-                        # 'wrist_image_left': obs['image'][f'{wrist_ids[0]}_left'][..., ::-1],
-                        'cartesian_position': obs['robot_state']['cartesian_position'],
-                        'joint_position': obs['robot_state']["joint_position"],
-                        'gripper_position': np.array([obs['robot_state']['gripper_position']]),
-                    },
-                    'action_dict': {
-                        'cartesian_position': action['cartesian_position'],
-                        'cartesian_velocity': action['cartesian_velocity'],
-                        'gripper_position': np.array([action['gripper_position']]),
-                        'gripper_velocity': np.array([action['gripper_velocity']]),
-                        'joint_position': action['joint_position'],
-                        'joint_velocity': action['joint_velocity'],
-                    },
-                    'action': np.concatenate((action['cartesian_position'], [action['gripper_position']])),
+                episode_dict['observation'] = {}
+                episode_dict['action'] = {}
+                # episode_dict['action'] = {}
+                for key in camera_keys:
+                    episode_dict['observation'][key] = {}
+                    episode_dict['observation'][key].update({'color': obs[key]['color'][..., ::-1]})
+                    episode_dict['observation'][key].update({'depth': obs[key]['depth'][..., ::-1]})
+
+                for key in robot_keys:
+                    if 'cartesian_position' not in obs[key].keys():
+                        if key.startswith('realman'):
+                            robot_type = 'realman'
+                        elif key.startswith('panda'):
+                            robot_type = 'panda'
+                        else:
+                            raise ValueError(f"Unknown robot type {key}.")
+                        cartesian_position = kinematic_solver[robot_type].forward_kinematics(joint_angles=
+                                                                                             {key: obs[key][
+                                                                                                 'joint_position'].tolist()})[
+                            key]
+                    else:
+                        cartesian_position = obs[key]['cartesian_position']
+                    episode_dict['observation'][key] = {}
+                    episode_dict['action'][key] = {}
+                    episode_dict['observation'][key].update({'joint_position': np.array([obs[key]['joint_position']]),
+                                                             'gripper_position': np.array(
+                                                                 [obs[key]['gripper_position']]),
+                                                             'cartesian_position': np.array(cartesian_position),
+                                                             })
+                    episode_dict['action'][key].update({'joint_position': np.array([action[key]['joint_position']]),
+                                                        'gripper_position': np.array([action[key]['gripper_position']]),
+                                                        'cartesian_position': np.array(
+                                                            [action[key]['cartesian_position']])})
+
+                episode_dict.update({
                     'discount': 1.0,
                     'reward': float((i == (len(data) - 1) and 'success' in episode_path)),
                     'is_first': i == 0,
@@ -78,7 +101,9 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
                     'is_terminal': i == (len(data) - 1),
                     'language_instruction': lang,
                 })
-        except:
+                episode.append(episode_dict)
+                episode_dict = {}
+        except (Exception,):
             print(f"Skipping trajectory because there was an error in data processing for {episode_path}.")
             return None
 
@@ -96,7 +121,6 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
     for sample in paths:
         yield _parse_example(sample)
 
-_generate_examples()
 
 class MultiTaskDataset(MultiThreadedDatasetBuilder):
     """DatasetBuilder for example dataset."""
@@ -158,31 +182,16 @@ class MultiTaskDataset(MultiThreadedDatasetBuilder):
                             dtype=np.float64,
                             doc='Commanded Cartesian position'
                         ),
-                        'cartesian_velocity': tfds.features.Tensor(
-                            shape=(6,),
-                            dtype=np.float64,
-                            doc='Commanded Cartesian velocity'
-                        ),
                         'gripper_position': tfds.features.Tensor(
                             shape=(1,),
                             dtype=np.float64,
                             doc='Commanded gripper position'
-                        ),
-                        'gripper_velocity': tfds.features.Tensor(
-                            shape=(1,),
-                            dtype=np.float64,
-                            doc='Commanded gripper velocity'
                         ),
                         'joint_position': tfds.features.Tensor(
                             shape=(7,),
                             dtype=np.float64,
                             doc='Commanded joint position'
                         ),
-                        'joint_velocity': tfds.features.Tensor(
-                            shape=(7,),
-                            dtype=np.float64,
-                            doc='Commanded joint velocity'
-                        )
                     }),
                     'action': tfds.features.Tensor(
                         shape=(7,),

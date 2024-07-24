@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Dict, List
 import numpy as np
 import transforms3d as t3d
@@ -19,12 +20,23 @@ tensor_args = TensorDeviceType()
 
 class CuroboSolverKinematic(KinematicSolverBase):
 
-    def __init__(self, robot_cfg, world_cfg, robot_path):
-        super().__init__()
-        robot_cfg = robot_cfg
-        world_cfg = world_cfg
-        self.robot_path = robot_path
+    def __init__(self, robot_type: str = 'panda'):
+        """
+        Initialize the CuroboSolverKinematic class.
 
+        :param robot_type: The type of the robot, include 'panda', 'ur5', 'xarm', 'realman'.
+        """
+        super().__init__()
+        if robot_type == 'realman':
+            robot_cfg = 'rm75_6f.yml'
+            world_cfg = 'collision_table.yml'
+            self.robot_path = os.path.join(Path(__file__).absolute().parent.parent, 'robot_description/rm_description')
+        elif robot_type == 'panda':
+            robot_cfg = 'franka.yml'
+            world_cfg = 'collision_table.yml'
+            self.robot_path = os.path.join(Path(__file__).absolute().parent.parent, 'robot_description/franka_description')
+        else:
+            raise ValueError(f"Curobo Kinematic Solver Unsupported robot type: {robot_type}")
         self.robot_names_link_names_pair = None
         self.robot_names_robot_dof_pair = None
         self.default_joint = None

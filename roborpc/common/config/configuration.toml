@@ -1,6 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 10
-use_controller = true
+use_controller = false
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -253,20 +253,20 @@ viewports = 'robot0_eye_in_hand'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
-resolution = [640, 480]
+resolution = [256, 256]
 
 [roborpc.sim_robots.mujoco.camera_2]
 viewports = 'robot0_robotview' # robot0_robotview for Lift and Insert, agentview for other tasks
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
-resolution = [640, 480]
+resolution = [256, 256]
 
 [roborpc.sim_robots.mujoco.camera_3]
 viewports = 'frontview'
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
-resolution = [640, 480]
+resolution = [256, 256]
 
 

@@ -36,17 +36,9 @@ class RobotEnv(gym.Env):
         self.camera_ids = self.cameras.get_device_ids()
         for robot_id in self.robot_ids:
             if robot_id.startswith('realman'):
-                self.kinematic_solver = CuroboSolverKinematic(
-                    robot_cfg='rm75_6f.yml',
-                    world_cfg='collision_table.yml',
-                    robot_path=os.path.join(Path(__file__).absolute().parent, 'robot_description/rm_description')
-                )
+                self.kinematic_solver = CuroboSolverKinematic('realman')
             elif robot_id.startswith('panda'):
-                self.kinematic_solver = CuroboSolverKinematic(
-                    robot_cfg='franka.yml',
-                    world_cfg='collision_table.yml',
-                    robot_path=os.path.join(Path(__file__).absolute().parent, 'robot_description/franka_description')
-                )
+                self.kinematic_solver = CuroboSolverKinematic('panda')
 
         self.use_controller = config['roborpc']['robot_env']['use_controller']
         if self.use_controller:
