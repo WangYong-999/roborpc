@@ -5,6 +5,7 @@ from scipy.spatial.transform import Rotation as R
 import base64
 import cv2
 
+
 def quat_to_euler(quat, degrees=False):
     euler = R.from_quat(quat).as_euler("xyz", degrees=degrees)
     return euler
@@ -82,6 +83,7 @@ def change_pose_frame(pose, frame, degrees=False):
     result = np.concatenate([t_new, euler_new])
     return result
 
+
 def rgb_to_base64(rgb, size=None, quality=100):
     height, width = rgb.shape[0], rgb.shape[1]
     if size is not None:
@@ -137,3 +139,8 @@ def base64_depth(isaac_sim_depth):
     return depth_np
 
 
+def apply_transfer(mat: np.ndarray, xyz: np.ndarray) -> np.ndarray:
+    # xyz can be 3dim or 4dim (homogeneous) or can be a rotation matrix
+    if len(xyz) == 3:
+        xyz = np.append(xyz, 1)
+    return np.matmul(mat, xyz)[:3]

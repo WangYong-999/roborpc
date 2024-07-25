@@ -84,7 +84,7 @@ class SimMujocoRobot(SimRobotInterface):
             self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
 
         self.env = robosuite.make(
-            env_name='NutAssemblySquare',
+            env_name='PickPlace',
             robots='Panda',
             controller_configs=load_controller_config(default_controller='JOINT_POSITION'),
             has_renderer=True,
@@ -220,7 +220,8 @@ class SimMujocoRobot(SimRobotInterface):
         return self.robot_config["robot_ids"][0]
 
     def reset_robot_state(self):
-        pass
+        logger.info("Resetting robot state")
+        self.reset_world_flag = True
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):

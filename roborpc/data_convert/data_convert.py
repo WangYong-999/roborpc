@@ -176,29 +176,25 @@ class MultiTaskDataset(MultiThreadedDatasetBuilder):
                             doc='Joint position state'
                         )
                     }),
-                    'action_dict': tfds.features.FeaturesDict({
-                        'cartesian_position': tfds.features.Tensor(
-                            shape=(6,),
-                            dtype=np.float64,
-                            doc='Commanded Cartesian position'
-                        ),
-                        'gripper_position': tfds.features.Tensor(
-                            shape=(1,),
-                            dtype=np.float64,
-                            doc='Commanded gripper position'
-                        ),
-                        'joint_position': tfds.features.Tensor(
-                            shape=(7,),
-                            dtype=np.float64,
-                            doc='Commanded joint position'
-                        ),
+                    'action': tfds.features.FeaturesDict({
+                        'panda_1': tfds.features.FeaturesDict({
+                            'cartesian_position': tfds.features.Tensor(
+                                shape=(6,),
+                                dtype=np.float64,
+                                doc='Commanded Cartesian position'
+                            ),
+                            'gripper_position': tfds.features.Tensor(
+                                shape=(1,),
+                                dtype=np.float64,
+                                doc='Commanded gripper position'
+                            ),
+                            'joint_position': tfds.features.Tensor(
+                                shape=(7,),
+                                dtype=np.float64,
+                                doc='Commanded joint position'
+                            ),
+                        }),
                     }),
-                    'action': tfds.features.Tensor(
-                        shape=(7,),
-                        dtype=np.float64,
-                        doc='Robot action, consists of [6x joint velocities, \
-                            1x gripper position].',
-                    ),
                     'discount': tfds.features.Scalar(
                         dtype=np.float32,
                         doc='Discount if provided, default to 1.'

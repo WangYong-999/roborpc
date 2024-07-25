@@ -1,6 +1,6 @@
 [roborpc.robot_env]
 env_update_rate = 10
-use_controller = false
+use_controller = true
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -95,6 +95,10 @@ control_robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
 
+[roborpc.controllers.spacemouse.spacemouse_controller_1]
+device_path = '/dev/hidraw0'
+
+
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.
 [roborpc.collector.data_collector]
@@ -117,7 +121,7 @@ use_zed_save_mp4 = false # for H5_MP4
 save_audio = false
 max_timesteps = 0 # 0 (not used) 1000
 dt = 0.02 # act used
-horizon = 300 # 0 for not used
+horizon = 600 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 
@@ -256,7 +260,7 @@ frequency = 20
 resolution = [256, 256]
 
 [roborpc.sim_robots.mujoco.camera_2]
-viewports = 'robot0_robotview' # robot0_robotview for Lift and Insert, agentview for other tasks
+viewports = 'agentview' # robot0_robotview for Lift and Insert, agentview for other tasks
 position = [0.0, 0.0, 0.0]
 rotation = [0.0, 0.0, 0.0, 1.0]
 frequency = 20
