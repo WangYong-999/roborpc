@@ -32,10 +32,13 @@ class SpaceMouseController(ControllerBase):
 
     def run_spacemouse_thread(self):
         while True:
-            state = self.spacemouse.read()
-            with self.last_state_lock:
+            if self.spacemouse is not None:
+                state = self.spacemouse.read()
                 self.last_state = state
-            time.sleep(0.001)
+                print(state)
+                time.sleep(0.001)
+            else:
+                time.sleep(1)
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
         if self.device_path is None:
@@ -55,12 +58,7 @@ class SpaceMouseController(ControllerBase):
         pass
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
-        return {
-            "success": self.state["buttons"]["A"],
-            "failure": self.state["buttons"]["B"],
-            "movement_enabled": self.state["movement_enabled"],
-            "controller_on": self.state["controller_on"],
-        }
+        return self.last_state
 
     def forward(self, obs_dict: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]) -> Union[
         Dict[str, List[float]], Dict[str, Dict[str, List[float]]]]:
@@ -95,4 +93,11 @@ class SpaceMouseController(ControllerBase):
 
 
 
-        return {"joint_position": obs_joints, "gripper_position": obs_gripper}
+        return {}
+
+
+if __name__ == "__main__":
+    controller = SpaceMouseController(device_path="/dev/hidraw1")
+    controller.connect_now()
+    while True:
+        time.sleep(0.1)

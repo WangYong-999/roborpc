@@ -127,7 +127,7 @@ class CuroboSolverKinematic(KinematicSolverBase):
         link_pose = {}
         joint_angles_list = []
         for robot_name, link_name in self.robot_names_link_names_pair.items():
-            joint_angles_list.append(joint_angles[robot_name])
+            joint_angles_list.extend(joint_angles[robot_name])
         state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
         ee_position = state.ee_position.cpu().numpy()[0]
         ee_wxyz = state.ee_quaternion.cpu().numpy()[0]
@@ -138,6 +138,36 @@ class CuroboSolverKinematic(KinematicSolverBase):
                 link_pose[robot_name] = state.link_pose[link_name].to_list()
         # right_position = state.link_pose['ee_link_1'].position.cpu().numpy()[0]
         # right_wxyz = state.link_pose['ee_link_1'].quaternion.cpu().numpy()[0]
+        return link_pose
+
+    def forward_batch_kinematics(self, joint_angles: Dict[str, List[List[float]]]) -> Dict[str, List[List[float]]]:
+        link_pose = {}
+        joint_angles_list = []
+        link_pose_list = []
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            joint_angles_list.append(np.array(joint_angles[robot_name]))
+        joint_angles_list = np.array(joint_angles_list)
+        joint_angles_list = joint_angles_list.reshape((-1, 7))
+        state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
+        print(state.ee_position.shape)
+        ee_position = state.ee_position.cpu().numpy()
+        ee_wxyz = state.ee_quaternion.cpu().numpy()
+        for i in range(ee_position.shape[0]):
+            link_pose_list.append(np.concatenate(
+                [ee_position[i], t3d.euler.quat2euler(ee_wxyz[i], axes='sxyz')]).tolist())
+        link_pose[self.ee_robot_name] = link_pose_list
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            link_pose_position = state.link_pose[link_name].position.cpu().numpy()
+            link_pose_wxyz = state.link_pose[link_name].quaternion.cpu().numpy()
+            if link_name != self.ee_link_name:
+                link_pose_list = []
+                for i in range(link_pose_position.shape[0]):
+                    link_pose_list.append(np.concatenate([link_pose_position[i],
+                                                          t3d.euler.quat2euler(link_pose_wxyz[i], axes='sxyz')]).tolist())
+                link_pose[robot_name] = link_pose_list
+        # right_position = state.link_pose['ee_link_1'].position.cpu().numpy()[0]
+        # right_wxyz = state.link_pose['ee_link_1'].quaternion.cpu().numpy()[0]
+        # print(link_pose)
         return link_pose
 
     def inverse_kinematics(self, pose: Dict[str, List[float]]) -> Dict[str, List[float]]:

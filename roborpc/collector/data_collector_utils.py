@@ -145,9 +145,7 @@ class TrajectoryReader:
 
             if length is None:
                 length = curr_length
-            print(f"{key}: {curr_length}")
-            print(f"length: {length}")
-            assert curr_length == length
+            assert curr_length == length, f"key: {key}, curr_length: {curr_length}, length: {length}"
         return length
 
     def read_timestep(self, index: Optional[int] = None):

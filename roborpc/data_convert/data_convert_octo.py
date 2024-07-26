@@ -8,7 +8,6 @@ from PIL import Image
 from roborpc.collector.data_collector_utils import load_trajectory, crawler
 from roborpc.data_convert.tfds_utils import MultiThreadedDatasetBuilder
 
-
 tfds.core.utils.gcs_utils._is_gcs_disabled = True
 DATA_PATH = "/media/jz08/SSD1/Log/droid/multi_task_dataset"
 
@@ -34,7 +33,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
 
     def _parse_example(episode_path):
         h5_filepath = os.path.join(episode_path, 'trajectory.h5')
-        lang = str(episode_path.split(DATA_PATH)[-1].split('/')[0]).replace('_','').replace('-','')
+        lang = str(episode_path.split(DATA_PATH)[-1].split('/')[0]).replace('_', '').replace('-', '')
         try:
             data = load_trajectory(h5_filepath)
         except (Exception,):
@@ -63,21 +62,25 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
                 episode_dict['action'] = {}
                 # episode_dict['action'] = {}
                 for key in camera_keys:
-                    episode_dict['observation'][key] = {}
-                    episode_dict['observation'][key].update({'color': obs[key]['color'][..., ::-1]})
+                    episode_dict['observation'].update({key: obs[key]['color'][..., ::-1]})
                     # episode_dict['observation'][key].update({'depth': obs[key]['depth'][..., ::-1]})
                 for key in robot_keys:
-                    episode_dict['observation'][key] = {}
-                    episode_dict['action'][key] = {}
-                    episode_dict['observation'][key].update({'joint_position': np.array([obs[key]['joint_position']]).reshape(-1),
-                                                             'gripper_position': np.array(
-                                                                 [obs[key]['gripper_position']]).reshape(-1),
-                                                             'cartesian_position': np.array(obs[key]['cartesian_position']).reshape(-1),
-                                                             })
-                    episode_dict['action'][key].update({'joint_position': np.array([action[key]['joint_position']]).reshape(-1),
-                                                        'gripper_position': np.array([action[key]['gripper_position']]).reshape(-1),
-                                                        'cartesian_position': np.array(
-                                                            [action[key]['cartesian_position']]).reshape(-1)})
+                    episode_dict['observation'].update(
+                        {'joint_position': np.array([obs[key]['joint_position']]).reshape(-1),
+                         'gripper_position': np.array(
+                             [obs[key]['gripper_position']]).reshape(-1),
+                         'cartesian_position': np.array(obs[key]['cartesian_position']).reshape(-1),
+                         })
+                    # episode_dict['action'].update(
+                    #     {'joint_position': np.array([action[key]['joint_position']]).reshape(-1),
+                    #      'gripper_position': np.array([action[key]['gripper_position']]).reshape(-1),
+                    #      'cartesian_position': np.array(
+                    #          [action[key]['cartesian_position']]).reshape(-1)})
+                    episode_dict['action'] = np.concatenate([
+                            # np.array([action[key]['joint_position']]).reshape(-1),
+                            np.array(action[key]['cartesian_position']),
+                            np.array(action[key]['gripper_position']),
+                        ], axis=0).reshape(-1)
 
                 episode_dict.update({
                     'discount': 1.0,
@@ -108,7 +111,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
         yield _parse_example(sample)
 
 
-class MultiTaskDataset(MultiThreadedDatasetBuilder):
+class MultiTaskDatasetOcto(MultiThreadedDatasetBuilder):
     """DatasetBuilder for example dataset."""
 
     VERSION = tfds.core.Version('1.0.0')
@@ -155,46 +158,29 @@ class MultiTaskDataset(MultiThreadedDatasetBuilder):
         # define dataset info
         obs_camera_info = {}
         for camera_key in camera_keys:
-            obs_camera_info[camera_key] = tfds.features.FeaturesDict({
-                'color': tfds.features.Image(shape=IMAGE_RES + (3,), dtype=np.uint8, encoding_format='jpeg'),
-                # 'depth': tfds.features.Image(shape=IMAGE_RES + (1,), dtype=np.uint8, encoding_format='jpeg')
-            })
-        obs_robot_info = {}
-        obs_action_info = {}
-        for robot_key in robot_keys:
-            obs_robot_info[robot_key] = tfds.features.FeaturesDict({
-                'cartesian_position': tfds.features.Tensor(
-                            shape=(6,),
-                            dtype=np.float64),
-                'gripper_position': tfds.features.Tensor(
-                                shape=(1,),
-                                dtype=np.float64,
-                            ),
-                'joint_position': tfds.features.Tensor(
-                                shape=(7,),
-                                dtype=np.float64,
-                            )}, doc=f'{robot_key} robot state')
-            obs_action_info[robot_key] = tfds.features.FeaturesDict({
-                'cartesian_position': tfds.features.Tensor(
-                            shape=(6,),
-                            dtype=np.float64),
-                'gripper_position': tfds.features.Tensor(
-                                shape=(1,),
-                                dtype=np.float64,
-                            ),
-                'joint_position': tfds.features.Tensor(
-                                shape=(7,),
-                                dtype=np.float64,
-                            )}, doc=f'{robot_key} robot state')
-
+            obs_camera_info[camera_key] = tfds.features.Image(shape=IMAGE_RES + (3,), dtype=np.uint8,
+                                                              encoding_format='jpeg')
         return self.dataset_info_from_configs(
             features=tfds.features.FeaturesDict({
                 'steps': tfds.features.Dataset({
                     'observation': tfds.features.FeaturesDict({
-                        **obs_robot_info,
-                        **obs_camera_info}),
-                    'action': tfds.features.FeaturesDict({
-                        **obs_action_info}),
+                        **obs_camera_info,
+                        'cartesian_position': tfds.features.Tensor(
+                            shape=(6,),
+                            dtype=np.float64),
+                        'gripper_position': tfds.features.Tensor(
+                            shape=(1,),
+                            dtype=np.float64,
+                        ),
+                        'joint_position': tfds.features.Tensor(
+                            shape=(7,),
+                            dtype=np.float64,
+                        )}, doc=f'robot state'),
+                    'action': tfds.features.Tensor(
+                        shape=(7,),
+                        dtype=np.float64,
+                        doc='Robot action, consists of [6x cartesian position, 1x gripper position].',
+                    ),
                     'discount': tfds.features.Scalar(
                         dtype=np.float32,
                         doc='Discount if provided, default to 1.'
