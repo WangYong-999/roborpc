@@ -44,8 +44,9 @@ class MultiControllersRpc(ControllerBase):
 
 class ComposedMultiController(ControllerBase):
 
-    def __init__(self):
+    def __init__(self, kinematic_solver = None):
         super().__init__()
+        self.kinematic_solver = kinematic_solver
         self.composed_multi_controllers = {}
         self.controller_config = config['roborpc']['controllers']
         self.robot_controller_map = {}
@@ -56,7 +57,7 @@ class ComposedMultiController(ControllerBase):
         sever_rpc_ports = self.controller_config["sever_rpc_ports"]
         for server_ip_address, rpc_port in zip(server_ips_address, sever_rpc_ports):
             if rpc_port == "":
-                self.composed_multi_controllers[server_ip_address] = MultiControllers()
+                self.composed_multi_controllers[server_ip_address] = MultiControllers(kinematic_solver=self.kinematic_solver)
             else:
                 self.composed_multi_controllers[server_ip_address] = MultiControllersRpc(server_ip_address, rpc_port)
             result.update(self.composed_multi_controllers[server_ip_address].connect_now())

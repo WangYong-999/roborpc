@@ -28,3 +28,5 @@ tensorflow-datasets==4.9.2
 plotly==5.15.0
 torch==1.12.1+cu113
 torchvision==0.13.1+cu113
+
+# curobo -> pip install -e . --no-build-isolation

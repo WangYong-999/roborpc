@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union, Optional
 import numpy as np
 import transforms3d as t3d
 import torch
@@ -123,19 +123,26 @@ class CuroboSolverKinematic(KinematicSolverBase):
             _ = self.ik_solver.solve_batch(ee_pose, link_poses=link_poses)
         torch.cuda.synchronize()
 
-    def forward_kinematics(self, joint_angles: Dict[str, List[float]]) -> Dict[str, List[float]]:
-        link_pose = {}
+    def forward_kinematics(self, joint_angles: Union[List[float], Dict[str, List[float]]]) \
+            -> Union[List[float], Dict[str, List[float]]]:
         joint_angles_list = []
         for robot_name, link_name in self.robot_names_link_names_pair.items():
-            joint_angles_list.extend(joint_angles[robot_name])
+            if isinstance(joint_angles, list):
+                joint_angles_list.extend(joint_angles)
+            else:
+                joint_angles_list.extend(joint_angles[robot_name])
         state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
         ee_position = state.ee_position.cpu().numpy()[0]
         ee_wxyz = state.ee_quaternion.cpu().numpy()[0]
-        link_pose[self.ee_robot_name] = np.concatenate(
-            [ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
-        for robot_name, link_name in self.robot_names_link_names_pair.items():
-            if link_name != self.ee_link_name:
-                link_pose[robot_name] = state.link_pose[link_name].to_list()
+        if isinstance(joint_angles, list):
+            link_pose = np.concatenate([ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
+        else:
+            link_pose = {}
+            link_pose[self.ee_robot_name] = np.concatenate(
+                [ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                if link_name != self.ee_link_name:
+                    link_pose[robot_name] = state.link_pose[link_name].to_list()
         # right_position = state.link_pose['ee_link_1'].position.cpu().numpy()[0]
         # right_wxyz = state.link_pose['ee_link_1'].quaternion.cpu().numpy()[0]
         return link_pose
@@ -170,41 +177,49 @@ class CuroboSolverKinematic(KinematicSolverBase):
         # print(link_pose)
         return link_pose
 
-    def inverse_kinematics(self, pose: Dict[str, List[float]]) -> Dict[str, List[float]]:
-        ee_pose = CuroboPose(position=tensor_args.to_device(pose[self.ee_robot_name][:3]),
-                             quaternion=tensor_args.to_device(
-                                 t3d.euler.euler2quat(*pose[self.ee_robot_name][3:], axes='sxyz')))
+    def inverse_kinematics(self, pose: Union[List[float], Dict[str, List[float]]]) \
+            -> Optional[Union[List[float], Dict[str, List[float]]]]:
         link_poses = {}
-        for robot_name, link_name in self.robot_names_link_names_pair.items():
-            if link_name != self.ee_link_name:
-                link_poses[link_name] = CuroboPose(position=tensor_args.to_device(pose[robot_name][:3]),
-                                                   quaternion=tensor_args.to_device(
-                                                       t3d.euler.euler2quat(*pose[robot_name][3:], axes='sxyz')))
+        if isinstance(pose, list):
+            ee_pose = CuroboPose(position=tensor_args.to_device(pose[:3]),
+                                 quaternion=tensor_args.to_device(
+                                     t3d.euler.euler2quat(*pose[3:], axes='sxyz')))
+        else:
+            ee_pose = CuroboPose(position=tensor_args.to_device(pose[self.ee_robot_name][:3]),
+                                 quaternion=tensor_args.to_device(
+                                     t3d.euler.euler2quat(*pose[self.ee_robot_name][3:], axes='sxyz')))
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                if link_name != self.ee_link_name:
+                    link_poses[link_name] = CuroboPose(position=tensor_args.to_device(pose[robot_name][:3]),
+                                                       quaternion=tensor_args.to_device(
+                                                           t3d.euler.euler2quat(*pose[robot_name][3:], axes='sxyz')))
         result = self.ik_solver.solve_batch(goal_pose=ee_pose, link_poses=link_poses)
         torch.cuda.synchronize()
         success = torch.any(result.success)
-        joint_angles = {}
         if success:
             cmd_plan = result.js_solution
             cmd_plan = cmd_plan.get_ordered_joint_state(self.joints_name)
-            result_position = list(cmd_plan.position.cpu().numpy()[0][0])
+            result_position = cmd_plan.position.cpu().numpy()[0][0].tolist()
             for robot_name, link_name in self.robot_names_link_names_pair.items():
                 joints_result = []
                 for i in range(*self.robot_names_robot_dof_pair[robot_name]):
                     joints_result.append(result_position.pop(0))
-                joint_angles[robot_name] = joints_result
-            logger.success(f'Ik Solve Success. Solved joints is {self.ik_solver.kinematics.joint_names}.\n'
-                           f'Joints angle is {joint_angles}')
+                if isinstance(pose, list):
+                    joint_angles = joints_result
+                else:
+                    joint_angles = {}
+                    joint_angles[robot_name] = joints_result
+            # logger.success(f'Ik Solve Success. Solved joints is {self.ik_solver.kinematics.joint_names}.\n'
+            #                f'Joints angle is {joint_angles}')
             return joint_angles
         else:
             logger.warning('Ik solve did not converge to a solution.')
-            return joint_angles
+            return None
 
 
 if __name__ == '__main__':
     solver = CuroboSolverKinematic()
-    joint_angles = {
-        'realman_1': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+    joint_angles = [ -0.001229998898153242, -0.78373070703473, 0.00033452204524119444, -2.3621342130897784, -0.002939444554553038, 1.5585773693838316, 0.7862526640851296]
 
     pose = solver.forward_kinematics(joint_angles)
     print(pose)

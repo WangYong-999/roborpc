@@ -90,14 +90,16 @@ camera_serial_number = '218622275485'
 # This section defines the controller configuration for the robots.
 [roborpc.controllers]
 # ON or OFF
-controller_ids = [['dynamixel_controller_panda_1']]
+controller_ids = [['keyboard_controller_1']] #spacemouse_controller_1 #quest_controller_1
 control_robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
 
 [roborpc.controllers.spacemouse.spacemouse_controller_1]
-device_path = '/dev/hidraw0'
 
+[roborpc.controllers.quest.quest_controller_1]
+
+[roborpc.controllers.keyboard.keyboard_controller_1]
 
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.

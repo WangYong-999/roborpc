@@ -4,6 +4,9 @@ import numpy as np
 
 from roborpc.controllers.controller_base import ControllerBase
 from roborpc.controllers.dynamixel_controller import DynamixelController
+from roborpc.controllers.keyboard_controller import KeyboardController
+from roborpc.controllers.quest_controller import QuestController
+from roborpc.controllers.spacemouse_controller import SpaceMouseController
 from roborpc.robots.dynamixel import Dynamixel
 from roborpc.controllers.dynamixel_controller_utils import get_joint_offsets
 from roborpc.common.config_loader import config
@@ -11,9 +14,11 @@ from roborpc.common.logger_loader import logger
 
 
 class MultiControllers(ControllerBase):
-    def __init__(self, controller_ids: List[str] = None, control_robot_ids: List[str] = None):
+    def __init__(self, controller_ids: List[str] = None, control_robot_ids: List[str] = None,
+                 kinematic_solver=None):
         super().__init__()
         self.controllers = {}
+        self.kinematic_solver = kinematic_solver
         self.controller_config = config['roborpc']['controllers']
         self.robot_config = config['roborpc']['robots']
         if controller_ids is not None:
@@ -50,6 +55,15 @@ class MultiControllers(ControllerBase):
                         baudrate=self.robot_config['dynamixel'][controller_id]["baudrate"]
                     )
                 )
+                result[controller_id] = self.controllers[controller_id].connect_now()
+            elif str(controller_id).startswith('spacemouse_controller'):
+                self.controllers[controller_id] = SpaceMouseController(kinematic_solver=self.kinematic_solver)
+                result[controller_id] = self.controllers[controller_id].connect_now()
+            elif str(controller_id).startswith('quest_controller'):
+                self.controllers[controller_id] = QuestController(kinematic_solver=self.kinematic_solver)
+                result[controller_id] = self.controllers[controller_id].connect_now()
+            elif str(controller_id).startswith('keyboard_controller'):
+                self.controllers[controller_id] = KeyboardController(kinematic_solver=self.kinematic_solver)
                 result[controller_id] = self.controllers[controller_id].connect_now()
             else:
                 logger.error(f"Controller {controller_id} not found in config file.")

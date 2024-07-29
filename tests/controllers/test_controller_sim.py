@@ -9,6 +9,7 @@ if __name__ == '__main__':
         try:
             robot_obs, camera_obs = robot_env.get_observation()
             action = controller.forward(robot_obs)
+            # print(action)
             robot_env.step(action)
         except (Exception, KeyboardInterrupt) as e:
             print(e)

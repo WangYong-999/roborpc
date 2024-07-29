@@ -3,7 +3,6 @@ from typing import Union, List, Dict, Sequence, Optional, Tuple
 import numpy as np
 
 from roborpc.robots.robot_base import RobotBase
-from thirty_party.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol
 
 
 class Dynamixel(RobotBase):
@@ -71,6 +70,7 @@ class Dynamixel(RobotBase):
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
         print(f"self._joint_ids: {self._joint_ids}")
+        from thirty_party.dynamixel.driver import DynamixelDriver, DynamixelDriverProtocol
         self._driver = DynamixelDriver(self._joint_ids, port=self.port, baudrate=self.baudrate)
         self._driver.set_torque_mode(False)
 

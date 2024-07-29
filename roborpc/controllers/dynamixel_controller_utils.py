@@ -3,7 +3,6 @@ from typing import Sequence, Optional, Tuple
 
 import tqdm
 import numpy as np
-from thirty_party.dynamixel.driver import DynamixelDriver
 from roborpc.common.logger_loader import logger
 
 
@@ -15,6 +14,7 @@ def get_joint_offsets(
         start_joints: Optional[np.ndarray] = None,
         baudrate: int = 1000000,
 ):
+    from thirty_party.dynamixel.driver import DynamixelDriver
     logger.info("Getting joint offsets, please adjust dynamixels robot to starting positions within 3s.")
     for i in tqdm.tqdm(range(3)):
         time.sleep(1)

@@ -36,6 +36,14 @@ class MutilRobotsRpc(RobotBase):
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                               blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+        # print(type(state['panda_1']['joint_position']))
+        # print(type(state['panda_1']['gripper_position']))
+        # print(type(state['panda_1']))
+        # print(type(state))
+        # print(type(blocking))
+        # print("---")
+        # print(blocking)
+        # print(state)
         self.robots.set_robot_state(state, blocking)
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
