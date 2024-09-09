@@ -14,6 +14,13 @@ conda create -n roborpc python=3.8
 conda activate roborpc
 pip install -r requirements.txt
 pip install -e .
+
+git clone https://github.com/ARISE-Initiative/robosuite.git
+cd robosuite
+pip install -r requirements.txt
+pip install -e .
+
+
 ```
 
 # Usage
