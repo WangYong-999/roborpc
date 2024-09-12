@@ -21,7 +21,7 @@ sudo apt install git-lfs
 pip install -e . --no-build-isolation
 
 
-git clone https://github.com/ARISE-Initiative/robosuite.git
+git clone https://github.com/WangYong-999/robosuite.git
 cd robosuite
 pip install -r requirements.txt
 pip install -e .

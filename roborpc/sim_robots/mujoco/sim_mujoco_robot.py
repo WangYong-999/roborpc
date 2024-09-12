@@ -84,7 +84,7 @@ class SimMujocoRobot(SimRobotInterface):
             self.cameras_cache[camera_id]['depth'] = np.zeros((resolution[0], resolution[1]), dtype=np.float32)
 
         self.env = robosuite.make(
-            env_name='PickPlace',
+            env_name='NutAssembly',
             robots='Panda',
             controller_configs=load_controller_config(default_controller='JOINT_POSITION'),
             has_renderer=True,
