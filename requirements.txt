@@ -22,11 +22,7 @@ numpy-quaternion
 termcolor
 opencv-python==4.6.0.66
 opencv-contrib-python==4.6.0.66
-matplotlib
+matplotlib==3.7.1
 tensorflow==2.13.0
 tensorflow-datasets==4.9.2
 plotly==5.15.0
-torch==1.12.1+cu113
-torchvision==0.13.1+cu113
-
-# curobo -> pip install -e . --no-build-isolation

@@ -15,6 +15,12 @@ conda activate roborpc
 pip install -r requirements.txt
 pip install -e .
 
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+git clone https://github.com/NVlabs/curobo.git
+sudo apt install git-lfs
+pip install -e . --no-build-isolation
+
+
 git clone https://github.com/ARISE-Initiative/robosuite.git
 cd robosuite
 pip install -r requirements.txt
