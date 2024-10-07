@@ -1,5 +1,5 @@
 [roborpc.robot_env]
-env_update_rate = 5
+env_update_rate = 10
 use_controller = false
 
 ######### Robot Environment Configuration #########

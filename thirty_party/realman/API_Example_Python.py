@@ -1,10 +1,12 @@
+import time
+
 from robotic_arm_package.robotic_arm import *
 import sys
 
 
 #   画八字
 def demo1(robot):
-    ret = robot.Movej_Cmd([18.44, -10.677, -124.158, -15, -71.455], 30, 0)
+    ret = robot.Movej_Cmd([18.44, -10.677, -124.158, -15, -71.455], v=30, r=0)
     if ret != 0:
         print("设置初始位置失败:" + str(ret))
         sys.exit()
@@ -12,7 +14,7 @@ def demo1(robot):
     for num in range(0, 3):
         po1 = [0.186350, 0.062099, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movel_Cmd(po1, 30, 0)
+        ret = robot.Movel_Cmd(po1, v=30, r=0)
         if ret != 0:
             print("Movel_Cmd 1 失败:" + str(ret))
             sys.exit()
@@ -20,14 +22,14 @@ def demo1(robot):
         po2 = [0.21674, 0.0925, 0.2, 3.141, 0, 1.569]
         po3 = [0.20785, 0.114, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movec_Cmd(po2, po3, 30, 0, 0)
+        ret = robot.Movec_Cmd(po2, po3, v=30, r=0, loop=0)
         if ret != 0:
             print("Movec_Cmd 1 失败:" + str(ret))
             sys.exit()
 
         po4 = [0.164850, 0.157, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movel_Cmd(po4, 30, 0)
+        ret = robot.Movel_Cmd(po4, v=30, r=0)
         if ret != 0:
             print("Movel_Cmd 2 失败:" + str(ret))
             sys.exit()
@@ -35,7 +37,7 @@ def demo1(robot):
         po5 = [0.186350, 0.208889, 0.2, 3.141, 0, 1.569]
         po6 = [0.20785, 0.157, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movec_Cmd(po5, po6, 30, 0, 0)
+        ret = robot.Movec_Cmd(po5, po6, v=30, r=0, loop=0)
         if ret != 0:
             print("Movel_Cmd 2 失败:" + str(ret))
             sys.exit()
@@ -95,10 +97,13 @@ def demo2(robot):
 def demo3(robot):
     #   回零位
     zero = [0, 0, 0, 0, 0, 0]
-    ret = robot.Movej_Cmd(zero, 20, 0)
+    ret = robot.Movej_Cmd(zero, v=30, r=0)
     if ret != 0:
         print("回零位失败：" + str(ret))
         sys.exit()
+
+    # 打开末端输出12V
+    robot.Set_Tool_Voltage(2)
 
     #   张开夹爪，抓取位置
     robot.Set_Gripper_Release(500)
@@ -107,7 +112,7 @@ def demo3(robot):
         sys.exit()
 
     joint1 = [4.61, 93.549, 75.276, -10.098, -76.508, 57.224]
-    ret = robot.Movej_Cmd(joint1, 20, 0)
+    ret = robot.Movej_Cmd(joint1, v=30, r=0)
     if ret != 0:
         print("到达抓取位置失败：" + str(ret))
         sys.exit()
@@ -121,7 +126,7 @@ def demo3(robot):
     #   放置
     joint2 = [-106.244, 67.172, 96.15, -10.385, -71.097, 58.243]
 
-    ret = robot.Movej_Cmd(joint2, 20, 0)
+    ret = robot.Movej_Cmd(joint2, v=30, r=0)
     if ret != 0:
         print("到达放置位置失败：" + str(ret))
         sys.exit()
@@ -132,7 +137,7 @@ def demo3(robot):
         sys.exit()
 
     #   回零位
-    ret = robot.Movej_Cmd(zero, 20, 0)
+    ret = robot.Movej_Cmd(zero, v=30, r=0)
     if ret != 0:
         print("回零位失败：" + str(ret))
         sys.exit()
@@ -145,7 +150,7 @@ def demo4(robot):
     joint = [0, -20, -70, 0, -90, 0]
     zero = [0, 0, 0, 0, 0, 0]
 
-    robot.Movej_Cmd(joint, 20, 0)
+    robot.Movej_Cmd(joint, v=30, r=0)
 
     # 切换示教坐标系为基坐标系
     robot.Set_Teach_Frame(0)
@@ -193,7 +198,7 @@ def demo5(robot):
 
     # 运动到透传的第一个点位
     num_lines = len(point)
-    robot.Movej_Cmd(point[0], 20, 0, 0, True)
+    robot.Movej_Cmd(point[0], v=30, r=0)
 
     # 低跟随透传
 
@@ -218,7 +223,7 @@ def demo6(robot):
 
     # 使用文件行数
     num_lines = len(zero)
-    robot.Movej_Cmd(zero[0], 20, 0, True)
+    robot.Movej_Cmd(zero[0], v=30, r=0)
 
     # 开启透传力位混合控制补偿模式
     robot.Start_Force_Position_Move()
@@ -226,17 +231,17 @@ def demo6(robot):
 
     for i in range(num_lines):
         robot.Force_Position_Move_Joint(zero[i], 1, 0, 2, 2, False)
-        print(zero[i])
+        # print(zero[i])
         time.sleep(0.001)
 
     robot.Stop_Force_Position_Move()
 
 
-# 正逆解示例
+# 连接机械臂使用正逆解示例
 def demo7(robot):
     #   初始位置
     joint = [0, 0, -90, 0, -90, 0]
-    ret = robot.Movej_Cmd(joint, 20, 0)
+    ret = robot.Movej_Cmd(joint, v=30, r=0)
     print("Movej_Cmd ret:" + str(ret))
     time.sleep(1)
 
@@ -246,37 +251,86 @@ def demo7(robot):
     print(f'正解结果：{compute_pose}')
 
     #   逆解
-    compute_pose[0] += 0.
+    compute_pose[0] += 0.1
     res = Arm.Algo_Inverse_Kinematics(joint, compute_pose, 1)
     print(f'逆解：{res}')
 
 
+# 未连接机械臂使用正逆解示例
+def demo8():
+    mode = RobotType.RM65
+
+    sensor_type = SensorType.B
+
+    Arm.Algo_Init_Sys_Data(mode, sensor_type)
+
+    # 设置算法的安装角度为Y轴90°
+    Arm.Algo_Set_Angle(0, 90, 0)
+
+    print("当前算法安装角度： ", Arm.Algo_Get_Angle())
+
+    # 设置算法的工作坐标系
+    coord_work = FRAME()
+
+    coord_work.pose.position.x = 0
+
+    coord_work.pose.position.y = 0
+
+    coord_work.pose.position.z = 0
+
+    coord_work.pose.euler.rx = 0
+
+    coord_work.pose.euler.ry = 0
+
+    coord_work.pose.euler.rz = 3.14
+
+    Arm.Algo_Set_WorkFrame(coord_work)
+
+    curr_pose = Arm.Algo_Get_Curr_WorkFrame()
+
+    print(
+        f"当前工作坐标系：{curr_pose.frame_name.name, curr_pose.pose.position.x, curr_pose.pose.position.y, curr_pose.pose.position.z, curr_pose.pose.euler.rx, curr_pose.pose.euler.ry, curr_pose.pose.euler.rz}")
+
+    # 计算正解结果
+
+    joint = [0, 0, 90, 0, 90, 0]
+
+    compute_pose = Arm.Algo_Forward_Kinematics(joint)
+
+    print(f'正解：{compute_pose}')
+
+    # 计算逆解
+    q_out = Arm.Algo_Inverse_Kinematics(joint, compute_pose, 1)
+
+    print(f'逆解：{q_out}')
+
+def MCallback(data):
+    """
+    机械臂实时推送状态数据回调函数
+    """
+    print("推送数据的机械臂IP: ", data.arm_ip)
+    print("机械臂错误码: ", data.arm_err)
+    print("系统错误码: ", data.sys_err)
+    print("机械臂当前角度: ", list(data.joint_status.joint_position))
+    print("机械臂当前位姿： ", data.waypoint.position.x, data.waypoint.position.y, data.waypoint.position.z,
+          data.waypoint.euler.rx, data.waypoint.euler.ry, data.waypoint.euler.rz)
+
+
 if __name__ == "__main__":
-    def mcallback(data):
-        print("MCallback MCallback MCallback")
-        # 判断接口类型
-        if data.codeKey == MOVEJ_CANFD_CB:  # 角度透传
-            print("透传结果:", data.errCode)
-            print("当前角度:", data.joint[0], data.joint[1], data.joint[2], data.joint[3], data.joint[4], data.joint[5])
-        elif data.codeKey == MOVEP_CANFD_CB:  # 位姿透传
-            print("透传结果:", data.errCode)
-            print("当前角度:", data.joint[0], data.joint[1], data.joint[2], data.joint[3], data.joint[4], data.joint[5])
-            print("当前位姿:", data.pose.position.x, data.pose.position.y, data.pose.position.z, data.pose.euler.rx,
-                  data.pose.euler.ry, data.pose.euler.rz)
-        elif data.codeKey == FORCE_POSITION_MOVE_CB:  # 力位混合透传
-            print("透传结果:", data.errCode)
-            print("当前力度：", data.nforce)
-
-
     # 连接机械臂，注册回调函数
-    callback = CANFD_Callback(mcallback)
-    robot = Arm(RM65, "192.168.1.18", callback)
+    robot = Arm(RM65, "192.168.1.18")
 
     # API版本信息
     print(robot.API_Version())
 
+    # 机械臂实时状态推送回调函数注册（如需实时获取机械臂状态可打开注册回调函数）
+    # callback = RealtimePush_Callback(MCallback)
+    # robot.Realtime_Arm_Joint_State(callback)
+
     # 运行示例
-    demo7(robot)
+    demo2(robot)
+
+    time.sleep(10)
 
     # 断开连接
     robot.RM_API_UnInit()
