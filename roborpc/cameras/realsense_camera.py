@@ -79,7 +79,7 @@ class RealSenseCamera(CameraBase):
         image = color_image[:, :, ::-1]
         depth = depth_image
         camera_info = {
-            "color": pickle.loads(image),
-            "depth": pickle.loads(depth)
+            "color": pickle.dumps(image),
+            "depth": pickle.dumps(depth)
         }
         return camera_info

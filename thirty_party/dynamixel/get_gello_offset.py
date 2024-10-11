@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
-from droid.dynamixel.driver import DynamixelDriver
+from dynamixel.driver import DynamixelDriver
 from dataclasses import dataclass
 from common.config_loader import config as common_config
 
@@ -78,3 +78,7 @@ def get_config():
      # 1.5707963267948966]
     # [292.12421875, 250.32421875]
     return joint_offset_list, gripper_offset_list
+
+
+get_config()
+

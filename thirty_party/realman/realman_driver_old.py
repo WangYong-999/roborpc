@@ -1,12 +1,8 @@
 import ast
 import json
 import math
-import time
-
-from transforms3d.derivations.angle_axes import point
-
-from robotic_arm import *
-import sys
+import socket
+import threading
 import time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -23,8 +19,36 @@ class DriverRealman:
         self._joints_target = None
         arm_velocity = 50  # Percentage of the Realman max speed.
         device_ip = "192.168.1.18"
-        self.robot = Arm(ECO65, device_ip)
-        self.robot.Set_Gripper_Release(500)
+        device_port = 8080
+        gripper_time = 2.0  # in seconds
+        retry = 3  # times
+        retry_delay = 1.0  # in seconds
+        socket_time_out = 2.0  # in seconds
+
+        home_pose = [0.0, -1.9, 0.0, 0.0, 0.0, 1.9,
+                     0.0]  # [0.0, -1.5708, 0.0, 0.0, 0.0, 1.5708, 0.0]  # unit: radian
+        zero_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # unit: radian
+        tray_pose = [-0.2775929272174835, -0.7669379711151123, -3.6843175888061523,
+                     0.8580743074417114, 3.157172203063965, 4.292811393737793,
+                     2.383378267288208]
+
+
+        self.realman_ip = device_ip
+        self.realman_port = device_port
+        self.time_out = socket_time_out
+        self.delay = retry_delay
+        self.velocity = arm_velocity
+        self.retry = retry
+        self.arm_velocity = arm_velocity
+        self.home_pose = home_pose
+        self.zero_pose = zero_pose
+        self.tray_pose = tray_pose
+        self.gripper_time = gripper_time
+        self.socket: Optional[socket.socket] = None
+        self._connect()
+
+        self.last_gripper_position = 0.0
+        self.set_gripper_opening(0.0)
 
     @staticmethod
     def _std_m_to_rm_m(
@@ -122,6 +146,77 @@ class DriverRealman:
         else:
             return math.radians(value / 1.e3)
 
+    def _connect(self) -> None:
+        """Establish the connection to the realman controller."""
+        if self.socket:
+            self.socket.close()
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(self.time_out)
+        self.socket.connect((self.realman_ip, self.realman_port))
+        logger.success(f'Connected to Realman robot '
+                       f'{self.realman_ip}:{self.realman_port}')
+
+    def _send_msg(self, msg: str, with_ret: bool = True) -> str:
+        """Send messages to the Realman driver.
+
+        Args:
+            msg: messages to send.
+            with_ret: Whether response value needs to return.
+
+        Returns:
+            A literal string, in which response values are stored as a dict.
+
+        Raises:
+            ConnectionError: The socket is not created or is broken.
+        """
+        if self.socket is None:
+            raise ConnectionError('The socket is not created or is broken.')
+        self.socket.sendall(bytes(msg, encoding='utf-8'))
+        if not with_ret:
+            return '{\'result\': None}'
+        data = b''
+        btime = time.time()
+        while True:
+            if time.time() - btime > self.time_out:
+                logger.warning(f'Communication in _send_msg timed out with '
+                               f'incomplete data: {data!r}.')
+                break
+            data += self.socket.recv(1024)
+            if b'\r\n' in data:
+                break
+        val = data.decode('utf-8')
+        return val
+
+    def _send_msg_with_retry(self,
+                             msg: str,
+                             with_ret: bool = True) -> Dict[str, Any]:
+        """Send messages to the Realman driver with self.retry times attempts.
+
+        Args:
+            msg: messages to send.
+            with_ret: Whether response value needs to return.
+
+        Returns:
+            Responses.
+
+        Raises:
+            Communication error with the Realman driver.
+        """
+        error_info = ''
+        for idx in range(self.retry):
+            try:
+                my_string = self._send_msg(msg, with_ret)
+                new_string = my_string.replace('false', 'False').replace('true', 'True')
+                return dict(ast.literal_eval(new_string))
+            except (SyntaxError, BrokenPipeError, socket.timeout) as e:
+                logger.error(f'Failed with {idx + 1} retry(s) and error '
+                             f'{type(e)} {e}.')
+                error_info = str(e)
+                time.sleep(self.delay)
+                self._connect()
+        raise ConnectionError(f'Communication Error, type: {error_info}.')
+
+    # ----
     # Query Services
     def get_end_effector_pose(self) -> np.ndarray:
         """Return the effector pose in RotationForm.QUATERNION.
@@ -129,15 +224,20 @@ class DriverRealman:
         Returns:
             Of shape (7,). That is Position (x, y, z) + Rotation (x, y, z, w).
         """
-        return np.zeros(7)
+        data = json.dumps({'command': 'get_current_arm_state'})
+        data += '\r\n'
+        result = self._send_msg_with_retry(data)
+        pose = result['arm_state']['pose']
+        # 0.001mm to m
+        pose[:3] = self._rm_m_to_std_m(pose[:3])
+        # 0.001rad to rad
+        pose[3:] = self._rm_rad_to_std_rad(pose[3:])
+        return np.array(pose)
 
     def get_gripper_opening(self) -> float:
         """Return the gripper's opening amount."""
         # raise NotImplementedError('get_gripper not implemented')
-        tag, state =  self.robot.Get_Gripper_State()
-        print(f"tag:{tag}")
-        print(f"state:{state}")
-        return 0
+        return self.last_gripper_position
         # data = json.dumps({'command': 'get_gripper_state'})
         # data += '\r\n'
         # result = self._send_msg_with_retry(data)
@@ -150,8 +250,28 @@ class DriverRealman:
         Returns:
             Of shape (n_joints=7,).
         """
-        ret = self.robot.Get_Current_Arm_State(retry=1)
-        return np.array(ret[1])
+        data = json.dumps({'command': 'get_current_arm_state'})
+        data += '\r\n'
+        result = self._send_msg_with_retry(data)
+        pose = result['arm_state']['joint']
+        # 0.001degree to rad
+        pose = self._rm_deg_to_std_rad(pose)
+        return np.array(pose)
+
+    def get_lift_height(self) -> np.ndarray:
+        """Return the lift relative height in unit mm.
+
+        The height is relative to a (determined but uncontrollable/unfixed)
+        zero height. The driver takes the lift height when the driver launches
+        as the zero height.
+
+        Returns:
+            Of shape (1,).
+        """
+        data = json.dumps({'command': 'get_lift_state'})
+        data += '\r\n'
+        result = self._send_msg_with_retry(data)
+        return np.array([result['height'] / 1.e3])
 
     # ----
     # Arm Control Services
@@ -254,6 +374,20 @@ class DriverRealman:
             raise NotImplementedError(f'Unknown named pose {name}, '
                                       'available: Zero, Home.')
 
+    def step_cartesian_pose_increment(self, movement: np.ndarray) -> bool:
+        """Move the arms by an incremental value.
+
+        Args:
+            movement: of shape (7,).
+
+        Returns:
+            The trajectory_state from the response.
+        """
+        pos_now = self.get_end_effector_pose()
+        pos_target = [pos + move for pos, move in zip(pos_now, movement)]
+        if self.reach_cartesian_pose(np.array(pos_target)):
+            return True
+        return False
 
     # ----
     # Gripper Control Services

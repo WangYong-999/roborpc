@@ -8,8 +8,9 @@ if __name__ == '__main__':
     controller = robot_env.controllers
     try:
         robot_obs, camera_obs = robot_env.get_observation()
-        action = controller.forward(robot_obs)
-        robot_env.step(action_linear_interpolation(robot_obs, action))
+        print(robot_obs)
+        # action = controller.forward(robot_obs)
+        # robot_env.step(action_linear_interpolation(robot_obs, action))
     except (Exception, KeyboardInterrupt) as e:
         print(e)
         pid = subprocess.run(["pgrep", "-f", "test_controller"], capture_output=True)

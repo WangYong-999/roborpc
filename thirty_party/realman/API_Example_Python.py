@@ -6,7 +6,7 @@ import sys
 
 #   画八字
 def demo1(robot):
-    ret = robot.Movej_Cmd([18.44, -10.677, -124.158, -15, -71.455], v=30, r=0)
+    ret = robot.Movej_Cmd([18.44, -10.677, -124.158, -15, -71.455], 30, 0)
     if ret != 0:
         print("设置初始位置失败:" + str(ret))
         sys.exit()
@@ -14,7 +14,7 @@ def demo1(robot):
     for num in range(0, 3):
         po1 = [0.186350, 0.062099, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movel_Cmd(po1, v=30, r=0)
+        ret = robot.Movel_Cmd(po1, 30, 0)
         if ret != 0:
             print("Movel_Cmd 1 失败:" + str(ret))
             sys.exit()
@@ -22,14 +22,14 @@ def demo1(robot):
         po2 = [0.21674, 0.0925, 0.2, 3.141, 0, 1.569]
         po3 = [0.20785, 0.114, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movec_Cmd(po2, po3, v=30, r=0, loop=0)
+        ret = robot.Movec_Cmd(po2, po3, 30, 0, 0)
         if ret != 0:
             print("Movec_Cmd 1 失败:" + str(ret))
             sys.exit()
 
         po4 = [0.164850, 0.157, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movel_Cmd(po4, v=30, r=0)
+        ret = robot.Movel_Cmd(po4, 30, 0)
         if ret != 0:
             print("Movel_Cmd 2 失败:" + str(ret))
             sys.exit()
@@ -37,7 +37,7 @@ def demo1(robot):
         po5 = [0.186350, 0.208889, 0.2, 3.141, 0, 1.569]
         po6 = [0.20785, 0.157, 0.2, 3.141, 0, 1.569]
 
-        ret = robot.Movec_Cmd(po5, po6, v=30, r=0, loop=0)
+        ret = robot.Movec_Cmd(po5, po6, 30, 0, 0)
         if ret != 0:
             print("Movel_Cmd 2 失败:" + str(ret))
             sys.exit()
@@ -97,13 +97,10 @@ def demo2(robot):
 def demo3(robot):
     #   回零位
     zero = [0, 0, 0, 0, 0, 0]
-    ret = robot.Movej_Cmd(zero, v=30, r=0)
+    ret = robot.Movej_Cmd(zero, 20, 0)
     if ret != 0:
         print("回零位失败：" + str(ret))
         sys.exit()
-
-    # 打开末端输出12V
-    robot.Set_Tool_Voltage(2)
 
     #   张开夹爪，抓取位置
     robot.Set_Gripper_Release(500)
@@ -112,7 +109,7 @@ def demo3(robot):
         sys.exit()
 
     joint1 = [4.61, 93.549, 75.276, -10.098, -76.508, 57.224]
-    ret = robot.Movej_Cmd(joint1, v=30, r=0)
+    ret = robot.Movej_Cmd(joint1, 20, 0)
     if ret != 0:
         print("到达抓取位置失败：" + str(ret))
         sys.exit()
@@ -126,7 +123,7 @@ def demo3(robot):
     #   放置
     joint2 = [-106.244, 67.172, 96.15, -10.385, -71.097, 58.243]
 
-    ret = robot.Movej_Cmd(joint2, v=30, r=0)
+    ret = robot.Movej_Cmd(joint2, 20, 0)
     if ret != 0:
         print("到达放置位置失败：" + str(ret))
         sys.exit()
@@ -137,7 +134,7 @@ def demo3(robot):
         sys.exit()
 
     #   回零位
-    ret = robot.Movej_Cmd(zero, v=30, r=0)
+    ret = robot.Movej_Cmd(zero, 20, 0)
     if ret != 0:
         print("回零位失败：" + str(ret))
         sys.exit()
@@ -150,7 +147,7 @@ def demo4(robot):
     joint = [0, -20, -70, 0, -90, 0]
     zero = [0, 0, 0, 0, 0, 0]
 
-    robot.Movej_Cmd(joint, v=30, r=0)
+    robot.Movej_Cmd(joint, 20, 0)
 
     # 切换示教坐标系为基坐标系
     robot.Set_Teach_Frame(0)
@@ -198,7 +195,7 @@ def demo5(robot):
 
     # 运动到透传的第一个点位
     num_lines = len(point)
-    robot.Movej_Cmd(point[0], v=30, r=0)
+    robot.Movej_Cmd(point[0], 20, 0, 0, True)
 
     # 低跟随透传
 
@@ -223,7 +220,7 @@ def demo6(robot):
 
     # 使用文件行数
     num_lines = len(zero)
-    robot.Movej_Cmd(zero[0], v=30, r=0)
+    robot.Movej_Cmd(zero[0], 20, 0, True)
 
     # 开启透传力位混合控制补偿模式
     robot.Start_Force_Position_Move()
@@ -240,10 +237,16 @@ def demo6(robot):
 # 连接机械臂使用正逆解示例
 def demo7(robot):
     #   初始位置
-    joint = [0, 0, -90, 0, -90, 0]
-    ret = robot.Movej_Cmd(joint, v=30, r=0)
+    joint = [0, 0, -90, 0, 90, 0]
+    ret = robot.Movej_Cmd(joint, 20, 0)
     print("Movej_Cmd ret:" + str(ret))
     time.sleep(1)
+
+    #   张开夹爪，抓取位置
+    robot.Set_Gripper_Release(500)
+    if ret != 0:
+        print("张开夹爪失败：" + str(ret))
+        sys.exit()
 
     #   正解
     compute_pose = Arm.Algo_Forward_Kinematics(joint)
@@ -304,6 +307,7 @@ def demo8():
 
     print(f'逆解：{q_out}')
 
+
 def MCallback(data):
     """
     机械臂实时推送状态数据回调函数
@@ -318,7 +322,7 @@ def MCallback(data):
 
 if __name__ == "__main__":
     # 连接机械臂，注册回调函数
-    robot = Arm(RM65, "192.168.1.18")
+    robot = Arm(ECO65, "192.168.1.18")
 
     # API版本信息
     print(robot.API_Version())
@@ -328,7 +332,7 @@ if __name__ == "__main__":
     # robot.Realtime_Arm_Joint_State(callback)
 
     # 运行示例
-    demo2(robot)
+    demo7(robot)
 
     time.sleep(10)
 

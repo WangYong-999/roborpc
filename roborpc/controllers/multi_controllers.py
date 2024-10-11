@@ -51,7 +51,7 @@ class MultiControllers(ControllerBase):
                         joint_offsets=joint_offset_list,
                         start_joints=np.array(self.robot_config['dynamixel'][controller_id]["start_joints"]),
                         port=self.robot_config['dynamixel'][controller_id]["port"],
-                        gripper_config=gripper_config,
+                        gripper_config=self.robot_config['dynamixel'][controller_id]["gripper_config"],
                         baudrate=self.robot_config['dynamixel'][controller_id]["baudrate"]
                     )
                 )

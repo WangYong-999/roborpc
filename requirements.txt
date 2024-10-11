@@ -1,4 +1,4 @@
-pin
+#pin
 pynput
 pyrealsense2
 scipy==1.7.1
@@ -15,11 +15,11 @@ tyro
 ur-rtde
 xarm
 xarm-python-sdk
-numpy-quaternion
+#numpy-quaternion
 termcolor
 opencv-python==4.6.0.66
 opencv-contrib-python==4.6.0.66
-matplotlib==3.7.1
-tensorflow==2.13.0
-tensorflow-datasets==4.9.2
-plotly==5.15.0
+#matplotlib==3.7.1
+#tensorflow==2.13.0
+#tensorflow-datasets==4.9.2
+#plotly==5.15.0

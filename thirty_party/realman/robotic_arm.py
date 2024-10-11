@@ -8,15 +8,15 @@ import os
 import time
 from enum import IntEnum
 import platform
+from typing import Tuple, List
 
-# 此处为了兼容绝对路径和相对路径，推荐用户根据包的结构选择一种清晰的导入方式
+# 此处为了兼容绝对路径和相对路径写了多种导入方式，推荐用户根据包的结构选择一种清晰的导入方式
 if __package__ is None or __package__ == '':
     # 当作为脚本运行时，__package__ 为 None 或者空字符串
     from log_setting import CommonLog
 else:
     # 当作为模块导入时，__package__ 为模块的包名
     from .log_setting import CommonLog
-
 
 logger_ = logging.getLogger(__name__)
 logger_ = CommonLog(logger_)
@@ -27,6 +27,8 @@ RML63_I = 631
 RML63_II = 632
 ECO65 = 651
 RM75 = 75
+ECO62 = 62
+GEN72 = 72
 
 ARM_DOF = 7
 MOVEJ_CANFD_CB = 0x0001  # 角度透传非阻
@@ -57,16 +59,19 @@ class ARM_CTRL_MODES(IntEnum):
     Line_Mode = 2,  # 笛卡尔空间直线规划
     Circle_Mode = 3,  # 笛卡尔空间圆弧规划
     Replay_Mode = 4,  # 拖动示教轨迹复现
+    Moves_Mode = 5  # 样条曲线运动
 
 
 class RobotType(IntEnum):
     RM65 = 0
     RM75 = 1
-    RML63I = 3
-    RML63II = 4
-    RML63III = 5
-    NANO = 6
-    ECO65 = 7
+    RML63I = 2
+    RML63II = 3
+    RML63III = 4
+    ECO65 = 5
+    ECO62 = 6
+    GEN72 = 7
+    UNIVERSAL = 8
 
 
 class SensorType(IntEnum):
@@ -170,7 +175,6 @@ class WiFi_Info(ctypes.Structure):
 
 
 CUR_PATH = os.path.dirname(os.path.realpath(__file__))
-print(CUR_PATH)
 
 # 获取当前操作系统的名称
 os_name = platform.system()
@@ -272,26 +276,69 @@ class ElectronicFenceNames(ctypes.Structure):
 # 电子围栏配置参数
 class ElectronicFenceConfig(ctypes.Structure):
     _fields_ = [
-        ("form", ctypes.c_int),
-        ("name", ctypes.c_char * 12),
+        ("form", ctypes.c_int),  # 形状，1 表示立方体，2 表示点面矢量平面，3 表示球体
+        ("name", ctypes.c_char * 12),  # 几何模型名称，不超过10个字节，支持字母、数字、下划线
         # 立方体
-        ("x_min_limit", ctypes.c_int),
-        ("x_max_limit", ctypes.c_int),
-        ("y_min_limit", ctypes.c_int),
-        ("y_max_limit", ctypes.c_int),
-        ("z_min_limit", ctypes.c_int),
-        ("z_max_limit", ctypes.c_int),
+        ("x_min_limit", ctypes.c_float),  # 立方体基于世界坐标系 X 方向最小位置，单位 0.001m
+        ("x_max_limit", ctypes.c_float),  # 立方体基于世界坐标系 X 方向最大位置，单位 0.001m
+        ("y_min_limit", ctypes.c_float),  # 立方体基于世界坐标系 Y 方向最小位置，单位 0.001m
+        ("y_max_limit", ctypes.c_float),  # 立方体基于世界坐标系 Y 方向最大位置，单位 0.001m
+        ("z_min_limit", ctypes.c_float),  # 立方体基于世界坐标系 Z 方向最小位置，单位 0.001m
+        ("z_max_limit", ctypes.c_float),  # 立方体基于世界坐标系 Z 方向最大位置，单位 0.001m
         # 点面矢量平面
-        ("x1", ctypes.c_int),
-        ("y1", ctypes.c_int),
-        ("z1", ctypes.c_int),
-        ("x2", ctypes.c_int),
-        ("y2", ctypes.c_int),
-        ("z2", ctypes.c_int),
-        ("x3", ctypes.c_int),
-        ("y3", ctypes.c_int),
-        ("z3", ctypes.c_int),
+        ("x1", ctypes.c_float),  # 表示点面矢量平面三点法中的第一个点坐标，单位 0.001m
+        ("z1", ctypes.c_float),
+        ("y1", ctypes.c_float),
+        ("x2", ctypes.c_float),  # 表示点面矢量平面三点法中的第二个点坐标，单位 0.001m
+        ("y2", ctypes.c_float),
+        ("z2", ctypes.c_float),
+        ("x3", ctypes.c_float),  # 表示点面矢量平面三点法中的第三个点坐标，单位 0.001m
+        ("y3", ctypes.c_float),
+        ("z3", ctypes.c_float),
+        # 球体
+        ("radius", ctypes.c_float),  # 表示半径，单位 0.001m
+        ("x", ctypes.c_float),  # 表示球心在世界坐标系 X 轴、Y轴、Z轴的坐标，单位 0.001m
+        ("y", ctypes.c_float),
+        ("z", ctypes.c_float),
     ]
+
+    def to_output(self):
+        name = self.name.decode("utf-8").strip()  # 去除字符串两端的空白字符
+        output_dict = {"name": name}
+
+        if self.form == 1:  # 立方体
+            output_dict.update({
+                "form": "cube",
+                "x_min_limit": float(format(self.x_min_limit, ".3f")),
+                "x_max_limit": float(format(self.x_max_limit, ".3f")),
+                "y_min_limit": float(format(self.y_min_limit, ".3f")),
+                "y_max_limit": float(format(self.y_max_limit, ".3f")),
+                "z_min_limit": float(format(self.z_min_limit, ".3f")),
+                "z_max_limit": float(format(self.z_max_limit, ".3f")),
+            })
+        elif self.form == 2:  # 点面矢量平面
+            output_dict.update({
+                "form": "point_face_vector_plane",
+                "x1": float(format(self.x1, ".3f")),
+                "y1": float(format(self.y1, ".3f")),
+                "z1": float(format(self.z1, ".3f")),
+                "x2": float(format(self.x2, ".3f")),
+                "y2": float(format(self.y2, ".3f")),
+                "z2": float(format(self.z2, ".3f")),
+                "x3": float(format(self.x3, ".3f")),
+                "y3": float(format(self.y3, ".3f")),
+                "z3": float(format(self.z3, ".3f")),
+            })
+        elif self.form == 3:  # 球体
+            output_dict.update({
+                "form": "sphere",
+                "radius": float(format(self.radius, ".3f")),
+                "x": float(format(self.x, ".3f")),
+                "y": float(format(self.y, ".3f")),
+                "z": float(format(self.z, ".3f")),
+            })
+
+        return output_dict
 
 
 # 夹爪状态
@@ -342,6 +389,187 @@ class ArmSoftwareInfo(ctypes.Structure):
         ("dynamic_info", DynamicInfo),
         ("plan_info", PlanInfo),
     ]
+
+
+# 定义ToolEnvelope结构体
+class ToolEnvelope(ctypes.Structure):
+    _fields_ = [
+        ("name", ctypes.c_char * 12),
+        ("radius", ctypes.c_float),  # 工具包络球体的半径，单位 m
+        ("x", ctypes.c_float),
+        ("y", ctypes.c_float),
+        ("z", ctypes.c_float),
+    ]
+
+    def __init__(self, name=None, radius=None, x=None, y=None, z=None):
+        if all(param is None for param in [name, radius, x, y, z]):
+            return
+        else:
+            # 转换name
+            self.name = name.encode('utf-8')
+            self.radius = radius
+            self.x = x
+            self.y = y
+            self.z = z
+
+    def to_output(self):
+        name = self.name.decode("utf-8")
+        # 创建一个字典，包含ToolEnvelope的所有属性
+        output_dict = {
+            "name": name,
+            "radius": float(format(self.radius, ".3f")),
+            "x": float(format(self.x, ".3f")),
+            "y": float(format(self.y, ".3f")),
+            "z": float(format(self.z, ".3f"))
+        }
+        return output_dict
+
+
+# 定义ToolEnvelopeList结构体，其中包含一个ToolEnvelope数组
+class ToolEnvelopeList(ctypes.Structure):
+    _fields_ = [
+        ("tool_name", ctypes.c_char * 12),  # 坐标系名称
+        ("list", ToolEnvelope * 5),  # 包络参数列表，最多5个
+        ("count", ctypes.c_int),  # 包络参数
+    ]
+
+    def __init__(self, tool_name=None, list=None, count=None):
+        if all(param is None for param in [tool_name, list, count]):
+            return
+        else:
+            # 转换tool_name
+            self.tool_name = tool_name.encode('utf-8')
+
+            self.list = (ToolEnvelope * 5)(*list)
+            self.count = count
+
+    def to_output(self):
+        name = self.tool_name.decode("utf-8")
+
+        output_dict = {
+            "tool_name": name,
+            "List": [self.list[i].to_output() for i in range(self.count)],
+            "count": self.count,
+        }
+        return output_dict
+
+
+class Waypoint(ctypes.Structure):
+    _fields_ = [("point_name", ctypes.c_char * 16),
+                ("joint", ctypes.c_float * ARM_DOF),
+                ("pose", Pose),
+                ("work_frame", ctypes.c_char * 12),
+                ("tool_frame", ctypes.c_char * 12),
+                ("time", ctypes.c_char * 20)]
+
+    def __init__(self, point_name=None, joint=None, pose=None, work_frame=None, tool_frame=None, time=''):
+        if all(param is None for param in [point_name, joint, pose, work_frame, tool_frame]):
+            return
+        else:
+            # 转换point_name
+            self.point_name = point_name.encode('utf-8')
+
+            # 转换joint
+            self.joint = (ctypes.c_float * ARM_DOF)(*joint)
+
+            pose_value = Pose()
+            pose_value.position = Pos(*pose[:3])
+            pose_value.euler = Euler(*pose[3:])
+
+            self.pose = pose_value
+
+            # 转换work_frame和tool_frame
+            self.work_frame = work_frame.encode('utf-8')
+            self.tool_frame = tool_frame.encode('utf-8')
+
+            # 转换time
+            self.time = time.encode('utf-8')
+
+    def to_output(self):
+        name = self.point_name.decode("utf-8")
+        wname = self.work_frame.decode("utf-8")
+        tname = self.tool_frame.decode("utf-8")
+        time = self.time.decode("utf-8")
+        position = self.pose.position
+        euler = self.pose.euler
+
+        output_dict = {
+            "point_name": name,
+            "joint": [float(format(self.joint[i], ".3f")) for i in range(ARM_DOF)],
+            "pose": [position.x, position.y, position.z, euler.rx, euler.ry, euler.rz],
+            "work_frame": wname,
+            "tool_frame": tname,
+            "time": time,
+        }
+        return output_dict
+
+
+# 定义WaypointsList结构体
+class WaypointsList(ctypes.Structure):
+    _fields_ = [("page_num", ctypes.c_int),
+                ("page_size", ctypes.c_int),
+                ("total_size", ctypes.c_int),
+                ("vague_search", ctypes.c_char * 32),
+                ("points_list", Waypoint * 100)]
+
+    def to_output(self):
+        vague_search = self.vague_search.decode("utf-8")
+        non_empty_outputs = []
+        for i in range(self.total_size):
+            if self.points_list[i].point_name != b'':  # 判断列表是否为空
+                output = self.points_list[i].to_output()
+                non_empty_outputs.append(output)
+
+        output_dict = {
+            "total_size": self.total_size,
+            "vague_search": vague_search,
+            "points_list": non_empty_outputs,
+        }
+        return output_dict
+
+
+class Send_Project_Params(ctypes.Structure):
+    _fields_ = [
+        ('project_path', ctypes.c_char * 300),
+        ('project_path_len', ctypes.c_int),
+        ('plan_speed', ctypes.c_int),
+        ('only_save', ctypes.c_int),
+        ('save_id', ctypes.c_int),
+        ('step_flag', ctypes.c_int),
+        ('auto_start', ctypes.c_int),
+    ]
+
+    def __init__(self, project_path: str = None, plan_speed: int = None, only_save: int = None, save_id: int = None,
+                 step_flag: int = None, auto_start: int = None):
+        """
+        在线编程文件下发结构体
+
+        @param project_path (str, optional): 下发文件路径文件路径及名称，默认为None
+        @param plan_speed (int, optional): 规划速度比例系数，默认为None
+        @param only_save (int, optional): 0-运行文件，1-仅保存文件，不运行，默认为None
+        @param save_id (int, optional): 保存到控制器中的编号，默认为None
+        @param step_flag (int, optional): 设置单步运行方式模式，1-设置单步模式 0-设置正常运动模式，默认为None
+        @param auto_start (int, optional): 设置默认在线编程文件，1-设置默认  0-设置非默认，默认为None
+        """
+        if all(param is None for param in [project_path, plan_speed, only_save, save_id, step_flag, auto_start]):
+            return
+        else:
+            if project_path is not None:
+                self.project_path = project_path.encode('utf-8')
+
+                # 路径及名称长度
+                self.project_path_len = len(project_path.encode('utf-8')) + 1  # 包括null终止符
+
+            # 规划速度比例系数
+            self.plan_speed = plan_speed if plan_speed is not None else 0
+            # 0-运行文件，1-仅保存文件，不运行
+            self.only_save = only_save if only_save is not None else 0
+            # 保存到控制器中的编号
+            self.save_id = save_id if save_id is not None else 0
+            # 设置单步运行方式模式，1-设置单步模式 0-设置正常运动模式
+            self.step_flag = step_flag if step_flag is not None else 0
+            # 设置默认在线编程文件，1-设置默认  0-设置非默认
+            self.auto_start = auto_start if auto_start is not None else 0
 
 
 class Set_Joint():
@@ -1136,6 +1364,72 @@ class Tool_Frame():
 
         return tag
 
+    def Update_Tool_Frame(self, name, pose, payload, x, y, z):
+
+        """
+        Update_Tool_Frame 修改指定工具坐标系
+        :param name: 要修改的工具坐标系名称
+        :param pose: 更新执行末端相对于机械臂法兰中心的位姿
+        :param payload: 更新新工具执行末端负载重量  单位kg
+        :param x: 更新工具执行末端负载位置 位置x 单位m
+        :param y: 更新工具执行末端负载位置 位置y 单位m
+        :param z: 更新工具执行末端负载位置 位置z 单位m
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+
+        self.pDll.Update_Tool_Frame.argtypes = (
+            ctypes.c_int, ctypes.c_char_p, Pose, ctypes.c_float, ctypes.c_float, ctypes.c_float
+            , ctypes.c_float)
+        self.pDll.Update_Tool_Frame.restype = self.check_error
+
+        name = ctypes.c_char_p(name.encode('utf-8'))
+
+        pose1 = Pose()
+
+        pose1.position = Pos(*pose[:3])
+        pose1.euler = Euler(*pose[3:])
+
+        tag = self.pDll.Update_Tool_Frame(self.nSocket, name, pose1, payload, x, y, z)
+
+        logger_.info(f'Update_Tool_Frame:{tag}')
+
+        return tag
+
+    def Set_Tool_Envelope(self, envelop_list: ToolEnvelopeList):
+        """
+        Set_Tool_Envelope 设置工具坐标系的包络参数
+        :param envelop_list: 包络参数列表，每个工具最多支持 5 个包络球，可以没有包络
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Set_Tool_Envelope.argtypes = (ctypes.c_int, ctypes.POINTER(ToolEnvelopeList))
+        self.pDll.Set_Tool_Envelope.restype = self.check_error
+
+        # tel_list = ToolEnvelopeList()
+
+        tag = self.pDll.Set_Tool_Envelope(self.nSocket, ctypes.pointer(envelop_list))
+
+        logger_.info(f'Set_Tool_Envelope:{tag}')
+
+        return tag
+
+    def Get_Tool_Envelope(self, tool_name) -> (int, dict):
+        """
+        获取指定工具坐标系的包络参数
+        :param tool_name: 指定工具坐标系名称
+        :return:  0-成功，失败返回:错误码, rm_define.h查询.
+
+        """
+
+        self.pDll.Get_Tool_Envelope.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ToolEnvelopeList)]
+        self.pDll.Get_Tool_Envelope.restype = self.check_error
+
+        tool_name = tool_name.encode("utf-8")
+        tel_list = ToolEnvelopeList()
+        tag = self.pDll.Get_Tool_Envelope(self.nSocket, tool_name, ctypes.pointer(tel_list))
+        logger_.info(f'Get_Tool_Envelope:{tag}')
+
+        return tag, tel_list.to_output()
+
     def Get_Current_Tool_Frame(self, retry=0):
         """
         Get_Current_Tool_Frame 获取当前工具坐标系
@@ -1296,6 +1590,32 @@ class Work_Frame():
 
         return tag
 
+    def Update_Work_Frame(self, name, pose):
+
+        """
+        Update_Work_Frame 修改指定工作坐标系
+        :param name: 要修改的工作坐标系名称
+        :param pose: 更新工作坐标系相对于基坐标系的位姿
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+
+        self.pDll.Update_Work_Frame.argtypes = (
+            ctypes.c_int, ctypes.c_char_p, Pose)
+        self.pDll.Update_Work_Frame.restype = self.check_error
+
+        name = ctypes.c_char_p(name.encode('utf-8'))
+
+        pose1 = Pose()
+
+        pose1.position = Pos(*pose[:3])
+        pose1.euler = Euler(*pose[3:])
+
+        tag = self.pDll.Update_Work_Frame(self.nSocket, name, pose1)
+
+        logger_.info(f'Update_Work_Frame:{tag}')
+
+        return tag
+
     def Get_Current_Work_Frame(self, retry=0):
         """
         Get_Current_Work_Frame 获取当前工作坐标系
@@ -1376,9 +1696,15 @@ class Work_Frame():
 
 class Arm_State():
     def Get_Current_Arm_State(self, retry=0):
-        """Gets the arm's current states. Returns 0 iff success.
-        Only works with POSE but not POSE_c, i.e., doesn't return quaternion.
-        Use forward_kinematics() instead if quaternion is a must."""
+        """获取机械臂当前状态
+
+        :return (error_code,joints,curr_pose,arm_err,sys_err)
+        error_code 0-成功，失败返回:错误码, rm_define.h查询.
+            joint 关节角度数组
+            pose 机械臂当前位姿数组
+            arm_err 机械臂运行错误代码
+            sys_err 控制器错误代码
+        """
 
         le = self.code
 
@@ -1407,7 +1733,9 @@ class Arm_State():
     def Get_Joint_Temperature(self):
         """
         Get_Joint_Temperature 获取关节当前温度
-        :return:
+        :return:(error_code,temperature)
+            error_code 0-成功，失败返回:错误码, rm_define.h查询.
+            temperature 关节温度数组
         """
 
         le = self.code
@@ -1427,7 +1755,9 @@ class Arm_State():
     def Get_Joint_Current(self):
         """
         Get_Joint_Current 获取关节当前电流
-        :return:
+        :return:(error_code,current)
+            error_code 0-成功，失败返回:错误码, rm_define.h查询.
+            current 关节电流数组
         """
         le = self.code
 
@@ -1446,7 +1776,9 @@ class Arm_State():
     def Get_Joint_Voltage(self):
         """
         Get_Joint_Voltage 获取关节当前电压
-        :return:
+        :return:(error_code,voltage)
+            error_code 0-成功，失败返回:错误码, rm_define.h查询.
+            voltage 关节电压数组
         """
         le = self.code
 
@@ -1465,7 +1797,9 @@ class Arm_State():
     def Get_Joint_Degree(self):
         """
         Get_Joint_Degree 获取关节当前电压
-        :return:
+        :return:(error_code,joint)
+            error_code 0-成功，失败返回:错误码, rm_define.h查询.
+            joint 关节角度数组
         """
 
         self.pDll.Get_Joint_Degree.argtypes = (ctypes.c_int, ctypes.c_float * 7)
@@ -1480,10 +1814,9 @@ class Arm_State():
 
         return tag, list(joint)
 
-    def Get_Arm_All_State(self, retry=0):
+    def Get_Arm_All_State(self, retry=0) -> (int, JOINT_STATE):
         """
         Get_Arm_All_State 获取机械臂所有状态信息
-        :param self:
         :return:
         """
         self.pDll.Get_Arm_All_State.argtypes = (ctypes.c_int, ctypes.POINTER(JOINT_STATE))
@@ -1605,6 +1938,15 @@ class Initial_Pose():
         return tag
 
     def Get_Install_Pose(self):
+        """
+        Get_Install_Pose     获取安装方式参数
+
+        err_code: 0-成功，失败返回:错误码, rm_define.h查询.
+        x: 旋转角 单位 °
+        y: 俯仰角 单位 °
+        z: 方位角 单位 °
+        :return:(err_code,x,y,z)
+        """
         self.pDll.Get_Install_Pose.argtypes = (ctypes.c_int,
                                                ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float),
                                                ctypes.POINTER(ctypes.c_float))
@@ -1614,11 +1956,11 @@ class Initial_Pose():
         tag = self.pDll.Get_Install_Pose(self.nSocket, x, y, z)
         logger_.info(f'Get_Install_Pose:{tag}')
 
-        return tag, x, y, z
+        return tag, x.value, y.value, z.value
 
 
-class Move_Plan():
-    def Movej_Cmd(self, joint, v, trajectory_connect, r=0, block=True):
+class Move_Plan:
+    def Movej_Cmd(self, joint, v, trajectory_connect=0, r=0, block=True):
         """
        Movej_Cmd 关节空间运动
        ArmSocket socket句柄
@@ -1643,7 +1985,7 @@ class Move_Plan():
 
         return tag
 
-    def Movel_Cmd(self, pose, v, trajectory_connect, r=0, block=True):
+    def Movel_Cmd(self, pose, v, trajectory_connect=0, r=0, block=True):
         """
         笛卡尔空间直线运动
 
@@ -1667,7 +2009,7 @@ class Move_Plan():
 
         return tag
 
-    def Movec_Cmd(self, pose_via, pose_to, v, loop, trajectory_connect, r=0, block=True):
+    def Movec_Cmd(self, pose_via, pose_to, v, loop, trajectory_connect=0, r=0, block=True):
         """
         Movec_Cmd 笛卡尔空间圆弧运动
         :param pose_via: 中间点位姿，位置单位：米，姿态单位：弧度
@@ -1700,7 +2042,7 @@ class Move_Plan():
 
         return tag
 
-    def Movej_P_Cmd(self, pose, v, trajectory_connect, r=0, block=True):
+    def Movej_P_Cmd(self, pose, v, trajectory_connect=0, r=0, block=True):
         """
         该函数用于关节空间运动到目标位姿
         param ArmSocket socket句柄
@@ -1727,6 +2069,32 @@ class Move_Plan():
 
         return tag
 
+    def Moves_Cmd(self, pose, v, trajectory_connect=0, r=0, block=True):
+        """
+        该函数用于样条曲线运动，
+        :param ArmSocket socket句柄
+        :param pose: 目标位姿，位置单位：米，姿态单位：弧度。 
+        :param v: 速度比例1~100，即规划速度和加速度占机械臂末端最大线速度和线加速度的百分比
+        :param trajectory_connect: 代表是否和下一条运动一起规划，0代表立即规划，1代表和下一条轨迹一起规划，当为1时，轨迹不会立即执行，样条曲线运动需至少连续下发三个点位，否则运动轨迹为直线
+        :param r: 轨迹交融半径，目前默认0。
+        :param block True 阻塞 False 非阻塞
+        :return 0-成功，失败返回:错误码
+
+        """
+        po1 = Pose()
+
+        po1.position = Pos(*pose[:3])
+        po1.euler = Euler(*pose[3:])
+
+        self.pDll.Moves_Cmd.argtypes = (
+            ctypes.c_int, Pose, ctypes.c_byte, ctypes.c_float, ctypes.c_int, ctypes.c_bool)
+        self.pDll.Moves_Cmd.restype = self.check_error
+
+        tag = self.pDll.Moves_Cmd(self.nSocket, po1, v, r, trajectory_connect, block)
+        logger_.info(f'Moves_Cmd执行结果:{tag}')
+
+        return tag
+
     def Movej_CANFD(self, joint, follow, expand=0):
         """
         Movej_CANFD 角度不经规划，直接通过CANFD透传给机械臂
@@ -1738,14 +2106,14 @@ class Move_Plan():
 
         if self.code == 6:
 
-            self.pDll.Movej_CANFD.argtypes = (ctypes.c_int, ctypes.c_float * 6, ctypes.c_bool, ctypes.c_int)
+            self.pDll.Movej_CANFD.argtypes = (ctypes.c_int, ctypes.c_float * 6, ctypes.c_bool, ctypes.c_float)
             self.pDll.Movej_CANFD.restype = self.check_error
 
             joints = (ctypes.c_float * 6)(*joint)
 
 
         else:
-            self.pDll.Movej_CANFD.argtypes = (ctypes.c_int, ctypes.c_float * 7, ctypes.c_bool, ctypes.c_int)
+            self.pDll.Movej_CANFD.argtypes = (ctypes.c_int, ctypes.c_float * 7, ctypes.c_bool, ctypes.c_float)
             self.pDll.Movej_CANFD.restype = self.check_error
 
             joints = (ctypes.c_float * 7)(*joint)
@@ -1779,7 +2147,7 @@ class Move_Plan():
 
         return tag
 
-    def MoveRotate_Cmd(self, rotateAxis, rotateAngle, choose_axis, v, trajectory_connect, r=0, block=True):
+    def MoveRotate_Cmd(self, rotateAxis, rotateAngle, choose_axis, v, trajectory_connect=0, r=0, block=True):
 
         """
         MoveRotate_Cmd  计算环绕运动位姿并按照结果运动
@@ -1809,7 +2177,8 @@ class Move_Plan():
 
         return tag
 
-    def MoveCartesianTool_Cmd(self, joint_cur, movelengthx, movelengthy, movelengthz, m_dev, v, trajectory_connect, r=0,
+    def MoveCartesianTool_Cmd(self, joint_cur, movelengthx, movelengthy, movelengthz, m_dev, v, trajectory_connect=0,
+                              r=0,
                               block=True):
         """
         cartesian_tool           沿工具端位姿移动
@@ -1850,6 +2219,28 @@ class Move_Plan():
         logger_.info(f'MoveCartesianTool_Cmd:{tag}')
 
         return tag
+
+    def Get_Current_Trajectory(self) -> Tuple[int, int, List[float]]:
+        """
+        Get_Current_Trajectory 获取当前轨迹规划类型
+
+        :return:
+            tuple[int, int, list[float]]: 一个包含三个元素的元组，分别表示：
+            - int: 0-成功，失败返回:错误码, errro_message查询.。
+            - int: 轨迹规划类型（由 ARM_CTRL_MODES 枚举定义的值）。
+            - list[float]: 包含7个浮点数的列表，关节规划及无规划时，该列表为关节角度数组；其他类型为末端位姿数组[x,y,z,rx,ry,rz]。
+        """
+
+        self.pDll.Get_Current_Trajectory.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int),
+                                                     ctypes.c_float * 7]
+        self.pDll.Get_Current_Trajectory.restype = self.check_error
+
+        type = ctypes.c_int()
+        data = (ctypes.c_float * 7)()
+        tag = self.pDll.Get_Current_Trajectory(self.nSocket, ctypes.byref(type), data)
+
+        logger_.info(f'Get_Current_Trajectory result:{tag}')
+        return tag, type.value, list(data)
 
     def Move_Stop_Cmd(self, block=True):
 
@@ -1937,7 +2328,7 @@ class Move_Plan():
         return tag
 
 
-class Teaching():
+class Teaching:
     def Joint_Teach_Cmd(self, num, direction, v, block=True):
         """
         Joint_Teach_Cmd 关节示教
@@ -2896,38 +3287,40 @@ class Set_Tool_IO():
 
 
 class Set_Gripper():
-    def Set_Gripper_Pick(self, speed, force, block=True):
+    def Set_Gripper_Pick(self, speed, force, block=True, timeout=30):
         """
         Set_Gripper_Pick_On 手爪力控夹取
         ArmSocket socket句柄
         speed 手爪夹取速度 ，范围 1~1000，无单位量纲 无
         force 力控阈值 ，范围 ：50~1000，无单位量纲 无
         block True 阻塞 False 非阻塞
+        timeout 超时时间设置，阻塞模式生效，单位：秒
         return 0-成功，失败返回:错误码, rm_define.h查询.
         """
 
-        self.pDll.Set_Gripper_Pick.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool)
+        self.pDll.Set_Gripper_Pick.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_int)
         self.pDll.Set_Gripper_Pick.restype = self.check_error
 
-        tag = self.pDll.Set_Gripper_Pick(self.nSocket, speed, force, block)
+        tag = self.pDll.Set_Gripper_Pick(self.nSocket, speed, force, block, timeout)
         logger_.info(f'Set_Gripper_Pick执行结果:{tag}')
 
         return tag
 
-    def Set_Gripper_Release(self, speed, block=True):
+    def Set_Gripper_Release(self, speed, block=True, timeout=30):
         """
         Set_Gripper_Release 手爪松开
         ArmSocket socket句柄
         speed 手爪松开速度 ，范围 1~1000，无单位量纲
         block True 阻塞 False 非阻塞
+        timeout 超时时间设置，阻塞模式生效，单位：秒
         return 0-成功，失败返回:错误码
 -
         """
 
-        self.pDll.Set_Gripper_Release.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_bool)
+        self.pDll.Set_Gripper_Release.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_int)
         self.pDll.Set_Gripper_Release.restype = self.check_error
 
-        tag = self.pDll.Set_Gripper_Release(self.nSocket, speed, block)
+        tag = self.pDll.Set_Gripper_Release(self.nSocket, speed, block, timeout)
         logger_.info(f'Set_Gripper_Release执行结果:{tag}')
         return tag
 
@@ -2949,36 +3342,38 @@ class Set_Gripper():
 
         return tag
 
-    def Set_Gripper_Pick_On(self, speed, force, block=True):
+    def Set_Gripper_Pick_On(self, speed, force, block=True, timeout=30):
         """
         Set_Gripper_Pick_On 手爪力控持续夹取
         :param speed:手爪夹取速度 ，范围 1~1000，无单位量纲 无
         :param force:力控阈值 ，范围 ：50~1000，无单位量纲 无
         :param block:RM_NONBLOCK-非阻塞，发送后立即返回；RM_BLOCK-阻塞，等待控制器返回设置成功指令
+        :param timeout:超时时间设置，阻塞模式生效，单位：秒
         :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
 
-        self.pDll.Set_Gripper_Pick_On.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool)
+        self.pDll.Set_Gripper_Pick_On.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_int)
         self.pDll.Set_Gripper_Pick_On.restype = self.check_error
 
-        tag = self.pDll.Set_Gripper_Pick_On(self.nSocket, speed, force, block)
+        tag = self.pDll.Set_Gripper_Pick_On(self.nSocket, speed, force, block, timeout)
 
         logger_.info(f'Set_Gripper_Pick_On:{tag}')
 
         return tag
 
-    def Set_Gripper_Position(self, position, block=True):
+    def Set_Gripper_Position(self, position, block=True, timeout=30):
         """
         Set_Gripper_Position 设置手爪开口度
         :param position:手爪开口位置 ，范围 ：1~1000，无单位量纲 无
         :param block:RM_NONBLOCK-非阻塞，发送后立即返回；RM_BLOCK-阻塞，等待控制器返回设置成功指令
+        :param timeout:超时时间设置，阻塞模式生效，单位：秒
         :return:0-成功，失败返回:错误码, rm_define.h查询.
         """
 
-        self.pDll.Set_Gripper_Position.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_bool)
+        self.pDll.Set_Gripper_Position.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_int)
         self.pDll.Set_Gripper_Position.restype = self.check_error
 
-        tag = self.pDll.Set_Gripper_Position(self.nSocket, position, block)
+        tag = self.pDll.Set_Gripper_Position(self.nSocket, position, block, timeout)
 
         logger_.info(f'Set_Gripper_Position:{tag}')
 
@@ -3723,11 +4118,31 @@ class ModbusRTU():
 
         return tag, list(coils_data)
 
+    def Read_Multiple_Input_Registers(self, port, address, num, device):
+        """
+        Read_Multiple_Input_Registers  读多个输入寄存器
+        :param port: 0-控制器 RS485 端口，1-末端接口板 RS485 接口，3-控制器 ModbusTCP 设备
+        :param address: 寄存器起始地址
+        :param num: 2<num<13要读的寄存器的数量，该指令最多一次性支持读12个寄存器数据，即24个byte
+        :param device: 外设设备地址
+        :return: coils_data(线圈状态)
+        """
+        le = int(num * 2)
+        self.pDll.Read_Multiple_Input_Registers.argtypes = (
+            ctypes.c_int, ctypes.c_byte, ctypes.c_int, ctypes.c_byte, ctypes.c_int, ctypes.c_int * le)
+        self.pDll.Read_Multiple_Input_Registers.restype = self.check_error
+
+        coils_data = (ctypes.c_int * le)()
+
+        tag = self.pDll.Read_Multiple_Input_Registers(self.nSocket, port, address, num, device, coils_data)
+
+        return tag, list(coils_data)
+
 
 class Set_Lift():
     def Set_Lift_Height(self, height, speed, block=True):
         """
-        Set_Lift_Height 导轨移动
+        Set_Lift_Height 设置升降机构高度
         ArmSocket socket句柄
         height  目标高度，单位mm，范围：0~2600
         speed  速度百分比，1~100
@@ -3746,7 +4161,7 @@ class Set_Lift():
 
     def Set_Lift_Speed(self, speed):
         """
-        Set_Lift_Speed           速度开环控制
+        Set_Lift_Speed    升降机构速度开环控制
         :param speed: speed-速度百分比，-100 ~100
         :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
@@ -3772,12 +4187,14 @@ class Set_Lift():
         """
 
         self.pDll.Get_Lift_State.argtypes = (
-            ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+            ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int))
         self.pDll.Get_Lift_State.restype = self.check_error
 
         height = ctypes.c_int()
         current = ctypes.c_int()
         err_flag = ctypes.c_int()
+        mode = ctypes.c_int()
 
         tag = self.pDll.Get_Lift_State(self.nSocket, ctypes.byref(height), ctypes.byref(current),
                                        ctypes.byref(err_flag))
@@ -3785,23 +4202,9 @@ class Set_Lift():
         while tag and retry:
             logger_.info(f'Get_Lift_State:{tag},retry is :{6 - retry}')
             tag = self.pDll.Get_Lift_State(self.nSocket, ctypes.byref(height), ctypes.byref(current),
-                                           ctypes.byref(err_flag))
+                                           ctypes.byref(err_flag), ctypes.byref(mode))
 
-        return tag, height.value, current.value, err_flag.value
-
-    # def Set_Arm_Dynamic_Parm(self, parm, block):
-    #     """
-    #     Set_Arm_Dynamic_Parm  重新设置机械臂动力学参数
-    #     :param parm: 设置机械臂动力学参数
-    #     :param block:RM_NONBLOCK-非阻塞，发送后立即返回；RM_BLOCK-阻塞，等待控制器返回设置成功指令
-    #     :return:0-成功，失败返回:错误码, rm_define.h查询.
-    #     """
-    #     # RM_SERVICESHARED_EXPORT
-    #     # int
-    #     # Set_Arm_Dynamic_Parm(SOCKHANDLE
-    #     # ArmSocket, const
-    #     # float * parm, bool
-    #     # block);
+        return tag, height.value, current.value, err_flag.value, mode.value
 
 
 class Expand():
@@ -3832,7 +4235,7 @@ class Expand():
 
         tag = self.pDll.Expand_Get_Version(self.nSocket, ctypes.byref(ver))
 
-        logger_.info(f'Expand_Get_Version:{ver.value}')
+        logger_.info(f'Expand_Get_Version:{tag}')
 
         return tag, ver.value
 
@@ -3949,11 +4352,12 @@ class UDP():
     def Get_Realtime_Push(self, retry=0):
         """
         Get_Realtime_Push        获取主动上报接口配置
-        ArmSocket                socket句柄
+        :param retry:
+        :return:
         cycle                        获取广播周期，为5ms的倍数
         port                         获取广播的端口号
         enable                       获取使能，是否使能主动上上报
-        :return:
+        error_code                   0-成功，失败返回:错误码, rm_define.h查询.
         """
 
         self.pDll.Get_Realtime_Push.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_int),
@@ -4122,7 +4526,7 @@ class Algo:
         # matrix = Matrix()
         # cls.pDll.Algo_Get_Angle(ctypes.byref(matrix))
 
-        return x, y, z
+        return x.value, y.value, z.value
 
     @classmethod
     def Algo_Forward_Kinematics(cls, joint):
@@ -4147,9 +4551,9 @@ class Algo:
         brief Algo_Inverse_Kinematics  逆解函数
         param q_in                     上一时刻关节角度 单位°
         param q_pose                   目标位姿
-        param q_out                    输出的关节角度 单位°
         param flag                     姿态参数类别：0-四元数；1-欧拉角
         return                         SYS_NORMAL：计算正常，CALCULATION_FAILED：计算失败
+                                       输出的关节角度 单位°
         """
         q_out = (ctypes.c_float * 7)()
         q_in = (ctypes.c_float * 7)(*q_in)
@@ -4161,7 +4565,9 @@ class Algo:
         else:
             po1.quaternion = Quat(*q_pose[3:])
 
-        cls.pDll.Algo_Inverse_Kinematics.argtypes = (ctypes.c_float*7,ctypes.POINTER(Pose),ctypes.c_float*7,ctypes.c_uint8)
+        cls.pDll.Algo_Inverse_Kinematics.argtypes = (
+            ctypes.c_float * 7, ctypes.POINTER(Pose), ctypes.c_float * 7, ctypes.c_uint8)
+
         tag = cls.pDll.Algo_Inverse_Kinematics(q_in, ctypes.byref(po1), q_out, flag)
         logger_.info(f'Algo_Inverse_Kinematics执行结果:{tag}')
 
@@ -4379,7 +4785,7 @@ class Algo:
         param  frame                    frame
         """
 
-        cls.pDll.Algo_Set_WorkFrame.argtypes = [FRAME]
+        cls.pDll.Algo_Set_WorkFrame.argtypes = [ctypes.POINTER(FRAME)]
 
         cls.pDll.Algo_Set_WorkFrame(frame)
 
@@ -4403,7 +4809,7 @@ class Algo:
         :param frame                     坐标系信息
         """
 
-        cls.pDll.Algo_Set_ToolFrame.argtypes = [FRAME]
+        cls.pDll.Algo_Set_ToolFrame.argtypes = [ctypes.POINTER(FRAME)]
 
         cls.pDll.Algo_Set_ToolFrame(coord_tool)
 
@@ -4512,28 +4918,20 @@ class Algo:
 
 class Online_programming():
 
-    def Send_TrajectoryFile(self, file_name, plan_speed, auto_start, step_flag):
+    def Send_TrajectoryFile(self, send_params: Send_Project_Params):
         """
         Send_TrajectoryFile          轨迹文件下发
         :param ArmSocket: socket句柄
-        :param file_name: 轨迹文件完整路径 例: c:/rm_file.txt
-        :param file_name_len: file_name 字段的长度
-        :param plan_speed: 规划速度比例(0-100)
-        :param auto_start: 设置默认在线编程文件 1-设置默认  0-设置非默认[-I]
-        :param step_flag: 设置单步运行方式模式 1-设置单步模式  0-设置正常运动模式[-I]
+        :param send_params: 文件下发参数
         :return: err_line: 有问题的工程行数
         """
 
         self.pDll.Send_TrajectoryFile.argtypes = (
-            ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_byte, ctypes.c_byte,
-            ctypes.POINTER(ctypes.c_int))
+            ctypes.c_int, Send_Project_Params, ctypes.POINTER(ctypes.c_int))
         self.pDll.Send_TrajectoryFile.restype = ctypes.c_int
 
-        file_name = ctypes.create_string_buffer(file_name.encode('utf-8'))
         err_line = ctypes.c_int()
-        file_name_len = len(file_name)
-        tag = self.pDll.Send_TrajectoryFile(self.nSocket, file_name, file_name_len, plan_speed, auto_start,
-                                            step_flag, ctypes.byref(err_line))
+        tag = self.pDll.Send_TrajectoryFile(self.nSocket, send_params, ctypes.byref(err_line))
         logger_.info(f'Send_TrajectoryFile: {tag}')
 
         return tag, err_line.value
@@ -4597,8 +4995,8 @@ class Program_list():
         """
         Get_Program_Trajectory_List  查询在线编程程序列表
         :param programlist                  在线编程程序列表
-                                    page_num:页码（全部查询时此参数传NULL）
-                                    page_size:每页大小（全部查询时此参数传NULL）
+                                    page_num:页码（0代表全部查询）
+                                    page_size:每页大小（0代表全部查询）
                                     vague_search:模糊搜索 （传递此参数可进行模糊查询）
         """
         self.pDll.Get_Program_Trajectory_List.argtypes = [ctypes.c_int, ctypes.POINTER(ProgramTrajectoryData)]
@@ -4640,6 +5038,7 @@ class Program_list():
         Set_Program_ID_Start：运行指定编号在线编程
         :param id:运行指定的ID，1-100，存在轨迹可运行
         :param speed:1-100，需要运行轨迹的速度，可不提供速度比例，按照存储的速度运行
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
         self.pDll.Set_Program_ID_Start.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool]
         self.pDll.Set_Program_ID_Start.restype = self.check_error
@@ -4653,6 +5052,7 @@ class Program_list():
         """
         Delete_Program_Trajectory：可删除指定ID的轨迹
         :param id:指定需要删除的轨迹编号
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
         self.pDll.Delete_Program_Trajectory.argtypes = [ctypes.c_int, ctypes.c_int]
         self.pDll.Delete_Program_Trajectory.restype = self.check_error
@@ -4662,8 +5062,256 @@ class Program_list():
 
         return result
 
+    def Update_Program_Trajectory(self, id, plan_speed, project_name):
+        """
+        修改指定编号的轨迹信息
+        :param id: 指定在线编程轨迹编号
+        :param plan_speed: 更新后的规划速度比例
+        :param project_name: 更新后的文件名称
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+
+        self.pDll.Update_Program_Trajectory.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p)
+        self.pDll.Update_Program_Trajectory.restype = self.check_error
+
+        name = ctypes.c_char_p(project_name.encode('utf-8'))
+
+        tag = self.pDll.Update_Program_Trajectory(self.nSocket, id, plan_speed, name)
+
+        logger_.info(f'Update_Program_Trajectory:{tag}')
+
+        return tag
+
+    def Set_Default_Run_Program(self, id):
+        """
+        设置 IO 默认运行的在线编程文件编号
+        :param id:设置 IO 默认运行的在线编程文件编号，支持 0-100，0 代表取消设置
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+
+        self.pDll.Set_Default_Run_Program.argtypes = (ctypes.c_int, ctypes.c_int)
+        self.pDll.Set_Default_Run_Program.restype = self.check_error
+
+        tag = self.pDll.Set_Default_Run_Program(self.nSocket, id)
+
+        logger_.info(f'Set_Default_Run_Program:{tag}')
+
+        return tag
+
+    def Get_Default_Run_Program(self):
+        """
+        获取 IO 默认运行的在线编程文件编号
+        :param
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        id:IO 默认运行的在线编程文件编号，支持 0-100，0 代表无默认
+        """
+
+        self.pDll.Get_Default_Run_Program.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_int))
+        self.pDll.Get_Default_Run_Program.restype = self.check_error
+        program_id = ctypes.c_int()
+        tag = self.pDll.Get_Default_Run_Program(self.nSocket, ctypes.byref(program_id))
+
+        logger_.info(f'Get_Default_Run_Program:{tag}')
+
+        return tag, program_id.value
+
+
+class Global_Waypoint():
+    def Add_Global_Waypoint(self, waypoint):
+        """
+        新增全局路点
+        :param waypoint: 新增全局路点参数结构体（无需输入新增全局路点时间）
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Add_Global_Waypoint.argtypes = [ctypes.c_int, ctypes.POINTER(Waypoint)]
+        self.pDll.Add_Global_Waypoint.restype = self.check_error
+
+        tag = self.pDll.Add_Global_Waypoint(self.nSocket, ctypes.pointer(waypoint))
+
+        logger_.info(f'Add_Global_Waypoint:{tag}')
+
+        return tag
+
+    def Update_Global_Waypoint(self, waypoint):
+        """
+        更新全局路点
+        :param waypoint: 更新全局路点参数（无需输入新增全局路点时间）
+        :return:
+        """
+        self.pDll.Update_Global_Waypoint.argtypes = [ctypes.c_int, ctypes.POINTER(Waypoint)]
+        self.pDll.Update_Global_Waypoint.restype = self.check_error
+
+        tag = self.pDll.Update_Global_Waypoint(self.nSocket, ctypes.pointer(waypoint))
+
+        logger_.info(f'Update_Global_Waypoint:{tag}')
+
+        return tag
+
+    def Delete_Global_Waypoint(self, name):
+        """
+        删除全局路点
+        :param name: 全局路点名称
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Delete_Global_Waypoint.argtypes = (ctypes.c_int, ctypes.c_char_p)
+        self.pDll.Delete_Global_Waypoint.restype = self.check_error
+
+        name = ctypes.c_char_p(name.encode('utf-8'))
+
+        tag = self.pDll.Delete_Global_Waypoint(self.nSocket, name)
+
+        logger_.info(f'Delete_Global_Waypoint:{tag}')
+
+        return tag
+
+    def Get_Global_Point_List(self, page_num=0, page_size=0, vague_search=None):
+        """
+        Get_Global_Point_List  查询多个全局路点
+        :param
+                page_num:页码（0代表全部查询）
+                page_size:每页大小（0代表全部查询）
+                vague_search:模糊搜索 （传递此参数可进行模糊查询）
+        :return:0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Get_Global_Point_List.argtypes = [ctypes.c_int, ctypes.POINTER(WaypointsList)]
+        self.pDll.Get_Global_Point_List.restype = self.check_error
+        point_list = WaypointsList()
+        point_list.page_num = page_num
+        point_list.page_size = page_size
+        if vague_search is not None:
+            point_list.vague_search = vague_search.encode('utf-8')
+        else:
+            point_list.vague_search = b''
+        tag = self.pDll.Get_Global_Point_List(self.nSocket, ctypes.byref(point_list))
+
+        logger_.info(f'Get_Global_Point_List:{tag}')
+        return tag, point_list.to_output()
+
+    def Given_Global_Waypoint(self, name):
+        """
+        Given_Global_Waypoint  查询指定全局路点
+        :param name 指定全局路点名称
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Given_Global_Waypoint.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(Waypoint)]
+        self.pDll.Given_Global_Waypoint.restype = self.check_error
+        point = Waypoint()
+        name = ctypes.c_char_p(name.encode('utf-8'))
+        tag = self.pDll.Given_Global_Waypoint(self.nSocket, name, ctypes.byref(point))
+
+        logger_.info(f'Given_Global_Waypoint:{tag}')
+        return tag, point.to_output()
+
 
 class Electronic_Fencel():
+
+    def Add_Electronic_Fence_Config(self, config):
+        """
+        :brief Add_Electronic_Fence_Config 新增几何模型参数
+        :param config   几何模型参数
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Add_Electronic_Fence_Config.argtypes = [ctypes.c_int, ElectronicFenceConfig]
+        self.pDll.Add_Electronic_Fence_Config.restype = self.check_error
+
+        result = self.pDll.Add_Electronic_Fence_Config(self.nSocket, config)
+        logger_.info(f'Add_Electronic_Fence_Config:{result}')
+
+        return result
+
+    def Update_Electronic_Fence_Config(self, config):
+        """
+        :brief Add_Electronic_Fence_Config 更新几何模型参数
+        :param config   几何模型参数
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Update_Electronic_Fence_Config.argtypes = [ctypes.c_int, ElectronicFenceConfig]
+        self.pDll.Update_Electronic_Fence_Config.restype = self.check_error
+
+        result = self.pDll.Update_Electronic_Fence_Config(self.nSocket, config)
+        logger_.info(f'Update_Electronic_Fence_Config:{result}')
+
+        return result
+
+    def Delete_Electronic_Fence_Config(self, name):
+        """
+        :brief Add_Electronic_Fence_Config 删除指定几何模型
+        :param name   指定几何模型名称
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Delete_Electronic_Fence_Config.argtypes = [ctypes.c_int, ctypes.c_char_p]
+        self.pDll.Delete_Electronic_Fence_Config.restype = self.check_error
+
+        name = ctypes.c_char_p(name.encode('utf-8'))
+        result = self.pDll.Delete_Electronic_Fence_Config(self.nSocket, name)
+        logger_.info(f'Delete_Electronic_Fence_Config:{result}')
+
+        return result
+
+    def Get_Electronic_Fence_List_Names(self):
+        """
+        :brief Get_Electronic_Fence_List_Names 查询所有几何模型名称
+        :param ArmSocket socket句柄
+        :param names   几何模型名称列表，长度为实际存在几何模型
+        :param len  几何模型名称列表长度
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Get_Electronic_Fence_List_Names.argtypes = [ctypes.c_int, ctypes.POINTER(ElectronicFenceNames),
+                                                              ctypes.POINTER(ctypes.c_int)]
+        self.pDll.Get_Electronic_Fence_List_Names.restype = self.check_error
+
+        max_len = 10  # maximum number of tools
+        names = (ElectronicFenceNames * max_len)()  # creates an array of FRAME_NAME
+        names_ptr = ctypes.POINTER(ElectronicFenceNames)(names)  #
+        len_ = ctypes.c_int()
+
+        result = self.pDll.Get_Electronic_Fence_List_Names(self.nSocket, names_ptr, ctypes.byref(len_))
+        logger_.info(f'Get_Electronic_Fence_List_Names:{result}')
+
+        job_names = [names[i].name.decode('utf-8') for i in range(len_.value)]
+        return result, job_names, len_.value
+
+    def Given_Electronic_Fence_Config(self, name):
+        """
+        :brief Given_Electronic_Fence_Config 查询指定几何模型参数
+        :param ArmSocket socket句柄
+        :param name   指定几何模型名称
+        :param config  返回几何模型参数
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Given_Electronic_Fence_Config.argtypes = [ctypes.c_int, ctypes.c_char_p,
+                                                            ctypes.POINTER(ElectronicFenceConfig)]
+        self.pDll.Given_Electronic_Fence_Config.restype = self.check_error
+
+        name = ctypes.c_char_p(name.encode('utf-8'))
+        config = ElectronicFenceConfig()
+
+        result = self.pDll.Given_Electronic_Fence_Config(self.nSocket, name, ctypes.byref(config))
+        logger_.info(f'Get_Electronic_Fence_List_Names:{result}')
+        return result, config.to_output()
+
+    def Get_Electronic_Fence_List_Info(self):
+        """
+        :brief Get_Electronic_Fence_List_Info 查询所有几何模型参数
+        :param ArmSocket socket句柄
+        :param config  几何模型信息列表，长度为实际存在几何模型
+        :param len  几何模型信息列表长度
+        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Get_Electronic_Fence_List_Info.argtypes = [ctypes.c_int, ctypes.POINTER(ElectronicFenceConfig),
+                                                             ctypes.POINTER(ctypes.c_int)]
+        self.pDll.Get_Electronic_Fence_List_Info.restype = self.check_error
+
+        max_len = 10  # maximum number of tools
+        config = (ElectronicFenceConfig * max_len)()  # creates an array of FRAME_NAME
+        config_ptr = ctypes.POINTER(ElectronicFenceConfig)(config)  #
+        len_ = ctypes.c_int()
+
+        result = self.pDll.Get_Electronic_Fence_List_Info(self.nSocket, config_ptr, ctypes.byref(len_))
+        logger_.info(f'Get_Electronic_Fence_List_Info:{result}')
+
+        return result, [config[i].to_output() for i in range(len_.value)], len_.value
+
     def Set_Electronic_Fence_Enable(self, enable, in_out_side, effective_region):
         """
         Set_Electronic_Fence_Enable          设置电子围栏使能状态
@@ -4729,114 +5377,74 @@ class Electronic_Fencel():
         result = self.pDll.Get_Electronic_Fence_Config(self.nSocket, ctypes.byref(config))
         logger_.info(f'Get_Electronic_Fence_Config:{result}')
 
-        return result, config
+        return result, config.to_output()
 
-    def Add_Electronic_Fence_Config(self, config):
+    def Set_Virtual_Wall_Enable(self, enable, in_out_side, effective_region):
         """
-        :brief Add_Electronic_Fence_Config 新增电子围栏参数
-        :param config   电子围栏参数
-        :return 0-成功，失败返回:错误码, rm_define.h查询.
+        Set_Virtual_Wall_Enable          设置虚拟墙使能状态
+        :param enable: true代表使能，false代表禁使能
+        :param in_out_side：0-机器人在虚拟墙内部
+        :param effective_region：1-针对末端生效
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
-        self.pDll.Add_Electronic_Fence_Config.argtypes = [ctypes.c_int, ElectronicFenceConfig]
-        self.pDll.Add_Electronic_Fence_Config.restype = self.check_error
+        self.pDll.Set_Virtual_Wall_Enable.argtypes = [ctypes.c_int, ctypes.c_bool, ctypes.c_int, ctypes.c_int]
+        self.pDll.Set_Virtual_Wall_Enable.restype = self.check_error
 
-        result = self.pDll.Add_Electronic_Fence_Config(self.nSocket, config)
-        logger_.info(f'Add_Electronic_Fence_Config:{result}')
+        result = self.pDll.Set_Virtual_Wall_Enable(self.nSocket, enable, in_out_side, effective_region)
+        logger_.info(f'Set_Virtual_Wall_Enable:{result}')
 
         return result
 
-    def Update_Electronic_Fence_Config(self, config):
+    def Get_Virtual_Wall_Enable(self):
         """
-        :brief Add_Electronic_Fence_Config 更新电子围栏参数
-        :param config   电子围栏参数
+        Get_Virtual_Wall_Enable          获取虚拟墙使能状态
+        :param enable: true代表使能，false代表禁使能
+        :param in_out_side：0-机器人在虚拟墙内部
+        :param effective_region：1-针对末端生效
+        :return: 0-成功，失败返回:错误码, rm_define.h查询.
+        """
+        self.pDll.Get_Virtual_Wall_Enable.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_bool),
+                                                      ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+        self.pDll.Get_Virtual_Wall_Enable.restype = self.check_error
+
+        enable = ctypes.c_bool()
+        in_out_side = ctypes.c_int()
+        effective_region = ctypes.c_int()
+        result = self.pDll.Get_Virtual_Wall_Enable(self.nSocket, ctypes.byref(enable), ctypes.byref(in_out_side),
+                                                   ctypes.byref(effective_region))
+        logger_.info(f'Get_Virtual_Wall_Enable:{result}')
+
+        return result, enable.value, in_out_side.value, effective_region.value
+
+    def Set_Virtual_Wall_Config(self, config):
+        """
+        Set_Virtual_Wall_Config 设置当前虚拟墙参数
+        :param config   虚拟墙参数
         :return 0-成功，失败返回:错误码, rm_define.h查询.
         """
-        self.pDll.Update_Electronic_Fence_Config.argtypes = [ctypes.c_int, ElectronicFenceConfig]
-        self.pDll.Update_Electronic_Fence_Config.restype = self.check_error
+        # config = ElectronicFenceConfig()
+        self.pDll.Set_Virtual_Wall_Config.argtypes = [ctypes.c_int, ElectronicFenceConfig]
+        self.pDll.Set_Virtual_Wall_Config.restype = self.check_error
 
-        result = self.pDll.Update_Electronic_Fence_Config(self.nSocket, config)
-        logger_.info(f'Update_Electronic_Fence_Config:{result}')
+        result = self.pDll.Set_Virtual_Wall_Config(self.nSocket, config)
+        logger_.info(f'Set_Virtual_Wall_Config:{result}')
 
         return result
 
-    def Delete_Electronic_Fence_Config(self, name):
+    def Get_Virtual_Wall_Config(self):
         """
-        :brief Add_Electronic_Fence_Config 删除电子围栏参数
-        :param name   指定电子围栏名称
+        Get_Virtual_Wall_Config 获取当前虚拟墙参数
+        :param config   虚拟墙参数
         :return 0-成功，失败返回:错误码, rm_define.h查询.
         """
-        self.pDll.Delete_Electronic_Fence_Config.argtypes = [ctypes.c_int, ctypes.c_char_p]
-        self.pDll.Delete_Electronic_Fence_Config.restype = self.check_error
 
-        name = ctypes.c_char_p(name.encode('utf-8'))
-        result = self.pDll.Delete_Electronic_Fence_Config(self.nSocket, name)
-        logger_.info(f'Delete_Electronic_Fence_Config:{result}')
-
-        return result
-
-    def Get_Electronic_Fence_List_Names(self):
-        """
-        :brief Get_Electronic_Fence_List_Names 查询所有电子围栏名称
-        :param ArmSocket socket句柄
-        :param names   电子围栏名称列表，长度为实际存在电子围栏
-        :param len  电子围栏名称列表长度
-        :return 0-成功，失败返回:错误码, rm_define.h查询.
-        """
-        self.pDll.Get_Electronic_Fence_List_Names.argtypes = [ctypes.c_int, ctypes.POINTER(ElectronicFenceNames),
-                                                              ctypes.POINTER(ctypes.c_int)]
-        self.pDll.Get_Electronic_Fence_List_Names.restype = self.check_error
-
-        max_len = 10  # maximum number of tools
-        names = (ElectronicFenceNames * max_len)()  # creates an array of FRAME_NAME
-        names_ptr = ctypes.POINTER(ElectronicFenceNames)(names)  #
-        len_ = ctypes.c_int()
-
-        result = self.pDll.Get_Electronic_Fence_List_Names(self.nSocket, names_ptr, ctypes.byref(len_))
-        logger_.info(f'Get_Electronic_Fence_List_Names:{result}')
-
-        job_names = [names[i].name.decode('utf-8') for i in range(len_.value)]
-        return result, job_names, len_.value
-
-    def Given_Electronic_Fence_Config(self, name):
-        """
-        :brief Given_Electronic_Fence_Config 查询指定电子围栏参数
-        :param ArmSocket socket句柄
-        :param name   指定电子围栏
-        :param config  返回电子围栏参数
-        :return 0-成功，失败返回:错误码, rm_define.h查询.
-        """
-        self.pDll.Given_Electronic_Fence_Config.argtypes = [ctypes.c_int, ctypes.c_char_p,
-                                                            ctypes.POINTER(ElectronicFenceConfig)]
-        self.pDll.Given_Electronic_Fence_Config.restype = self.check_error
-
-        name = ctypes.c_char_p(name.encode('utf-8'))
+        self.pDll.Get_Virtual_Wall_Config.argtypes = [ctypes.c_int, ctypes.POINTER(ElectronicFenceConfig)]
+        self.pDll.Get_Virtual_Wall_Config.restype = self.check_error
         config = ElectronicFenceConfig()
+        result = self.pDll.Get_Virtual_Wall_Config(self.nSocket, ctypes.byref(config))
+        logger_.info(f'Get_Virtual_Wall_Config:{result}')
 
-        result = self.pDll.Given_Electronic_Fence_Config(self.nSocket, name, ctypes.byref(config))
-        logger_.info(f'Get_Electronic_Fence_List_Names:{result}')
-        return result, config
-
-    def Get_Electronic_Fence_List_Info(self):
-        """
-        :brief Get_Electronic_Fence_List_Info 查询所有电子围栏参数
-        :param ArmSocket socket句柄
-        :param config  电子围栏信息列表，长度为实际存在电子围栏
-        :param len  电子围栏信息列表长度
-        :return 0-成功，失败返回:错误码, rm_define.h查询.
-        """
-        self.pDll.Get_Electronic_Fence_List_Info.argtypes = [ctypes.c_int, ctypes.POINTER(ElectronicFenceConfig),
-                                                             ctypes.POINTER(ctypes.c_int)]
-        self.pDll.Get_Electronic_Fence_List_Info.restype = self.check_error
-
-        max_len = 10  # maximum number of tools
-        config = (ElectronicFenceConfig * max_len)()  # creates an array of FRAME_NAME
-        config_ptr = ctypes.POINTER(ElectronicFenceConfig)(config)  #
-        len_ = ctypes.c_int()
-
-        result = self.pDll.Get_Electronic_Fence_List_Info(self.nSocket, config_ptr, ctypes.byref(len_))
-        logger_.info(f'Get_Electronic_Fence_List_Info:{result}')
-
-        return result, config, len_.value
+        return result, config.to_output()
 
     def Set_Self_Collision_Enable(self, enable):
         """
@@ -4855,7 +5463,7 @@ class Electronic_Fencel():
 
     def Get_Self_Collision_Enable(self):
         """
-        Get_Self_Collision_Enable          获取电子围栏使能状态
+        Get_Self_Collision_Enable          获取自碰撞安全检测使能状态
         :param enable: true代表使能，false代表禁使能
         :return: 0-成功，失败返回:错误码, rm_define.h查询.
         """
@@ -4872,7 +5480,8 @@ class Electronic_Fencel():
 
 class Arm(Set_Joint, Get_Joint, Tcp_Config, Tool_Frame, Work_Frame, Arm_State, Initial_Pose, Move_Plan, Teaching,
           Set_controller, Set_IO, Set_Tool_IO, Set_Gripper, Drag_Teach, Six_Force, Set_Hand, one_force,
-          ModbusRTU, Set_Lift, Force_Position, Algo, Online_programming, Expand, UDP, Program_list, Electronic_Fencel):
+          ModbusRTU, Set_Lift, Force_Position, Algo, Online_programming, Expand, UDP, Program_list, Electronic_Fencel,
+          Global_Waypoint):
     pDll = ctypes.cdll.LoadLibrary(dllPath)
 
     def __init__(self, dev_mode, ip, pCallback=None):
@@ -4889,6 +5498,7 @@ class Arm(Set_Joint, Get_Joint, Tcp_Config, Tool_Frame, Work_Frame, Arm_State, I
         logger_.info('开始进行机械臂API初始化完毕')
 
         self.API_Version()
+        self.Algo_Version()
 
         # 连接机械臂
         byteIP = bytes(ip, "gbk")
@@ -4900,7 +5510,7 @@ class Arm(Set_Joint, Get_Joint, Tcp_Config, Tool_Frame, Work_Frame, Arm_State, I
             logger_.info(f'连接机械臂连接失败:{state}')
 
         else:
-            logger_.info(f'连接机械臂成功:{state}')
+            logger_.info(f'连接机械臂成功，句柄为:{self.nSocket}')
 
     def Arm_Socket_State(self):
         """
@@ -4922,6 +5532,18 @@ class Arm(Set_Joint, Get_Joint, Tcp_Config, Tool_Frame, Work_Frame, Arm_State, I
         self.pDll.API_Version.restype = ctypes.c_char_p
         api_name = self.pDll.API_Version()
         logger_.info(f'API_Version:{api_name.decode()}')
+        time.sleep(0.5)
+
+        return api_name.decode()
+
+    def Algo_Version(self):
+        """
+        API_Version          查询API版本信息
+        return                       API版本号
+        """
+        self.pDll.Algo_Version.restype = ctypes.c_char_p
+        api_name = self.pDll.Algo_Version()
+        logger_.info(f'Algo_Version:{api_name.decode()}')
         time.sleep(0.5)
 
         return api_name.decode()
