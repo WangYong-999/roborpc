@@ -56,18 +56,18 @@ class DynamixelController(ControllerBase):
 
     def on_press(self, key):
         try:
-            if key == Key.scroll_lock:
+            if key == Key.page_up:
                 self.button_A_pressed = True
-            if key == Key.pause:
+            if key == Key.page_down:
                 self.button_B_pressed = True
         except AttributeError:
             logger.error(f"Unknown key {key}")
 
     def on_release(self, key):
         try:
-            if key == Key.scroll_lock:
+            if key == Key.page_up:
                 self.button_A_pressed = False
-            if key == Key.pause:
+            if key == Key.page_down:
                 self.button_B_pressed = False
         except AttributeError:
             logger.error(f"Unknown key {key}")

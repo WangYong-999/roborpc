@@ -83,17 +83,17 @@ class RobotEnv(gym.Env):
                         new_action_value = action_value[-1]
                     else:
                         new_action_value = action_value
-                    action_info[action_id].update({'joint_position': new_action_value})
+                    action_info[action_id].update({'joint_position': action_value})
                     joints_angle = {action_id: new_action_value}
-                    action_info[action_id].update({'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]})
+                    # action_info[action_id].update({'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]})
                     new_action[action_id].update({'joint_position': new_action_value})
                 if action_space_id == 'gripper_position':
                     if blocking is True:
                         blocking_info[action_id].update({'gripper_position': True})
                     action_info[action_id].update({'gripper_position': action_value})
                     new_action[action_id].update({'gripper_position': action_value})
-        self.robots.set_robot_state(new_action, blocking_info)
-        return action_info
+        self.robots.set_robot_state(action_info, blocking_info)
+        return new_action
 
     def reset(self, random_reset=False):
         self.robots.reset_robot_state()

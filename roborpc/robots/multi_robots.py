@@ -53,14 +53,28 @@ class MultiRobots(RobotBase):
         return self.robot_ids
 
     def reset_robot_state(self):
-        robot_state = {}
-        blocking_info = {}
+
+        joints_state, joints_action_space, joints_blocking = {}, {} ,{}
+        gripper_state, gripper_action_space, gripper_blocking = {}, {} ,{}
         for robot_id, robot in self.robots.items():
-            start_arm_joints = self.robot_config[robot_id]['start_arm_joints']
-            start_gripper_position = self.robot_config[robot_id]['start_gripper_position']
-            robot_state[robot_id] = {'joint_position': start_arm_joints, 'gripper_position': start_gripper_position}
-            blocking_info[robot_id].update({'joint_position': True, 'gripper_position': True})
-        self.set_robot_state(robot_state, blocking_info)
+            robot_name = str(robot_id).split('_')[0]
+            start_arm_joints = self.robot_config[robot_name][robot_id]['start_arm_joints']
+            start_gripper_position = self.robot_config[robot_name][robot_id]['start_gripper_joints']
+            # if robot_name == 'realman':
+            #     start_arm_joints = [start_arm_joints]
+            # robot_state[robot_id] = {'joint_position': start_arm_joints, 'gripper_position': start_gripper_position}
+            # blocking_info[robot_id] = {'joint_position': True, 'gripper_position': True}
+            joints_state[robot_id] = start_arm_joints
+            gripper_state[robot_id] = start_gripper_position
+            joints_action_space[robot_id] = 'joint_position'
+            gripper_action_space[robot_id] = 'gripper_position'
+            joints_blocking[robot_id] = True
+            gripper_blocking[robot_id] = True
+        print("successfully reset robot")
+        # self.set_robot_state(robot_state, blocking_info)
+        # TODO
+        self.set_joints(joints_state, joints_action_space, joints_blocking)
+        self.set_gripper(gripper_state, gripper_action_space, gripper_blocking)
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
@@ -92,7 +106,7 @@ class MultiRobots(RobotBase):
         robot_state = {}
         for robot_id, robot in self.robots.items():
             robot_state[robot_id] = robot.get_robot_state()
-        return self.robot_state
+        return robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
         dofs = {}

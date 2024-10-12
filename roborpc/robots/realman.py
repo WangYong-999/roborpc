@@ -54,7 +54,7 @@ class RealMan(RobotBase):
                 self.robot.move_joints_radian_trajectory(np.array(action))
                 # logger.info(f"Move joints to {action} in {time.time() - start_time} seconds.")
             # TODO: gripper bug
-            elif action_space == "gripper_position" and action[0] > 0.0001:
+            if action_space == "gripper_position" and action[0] > 0.0001:
                 self.robot.set_gripper_opening(action[0])
             elif action_space == "cartesian_position":
                 self.robot.move_cartesian_pose_trajectory(np.array([action]))
@@ -67,12 +67,13 @@ class RealMan(RobotBase):
     def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
                    action_space: Union[str, List[str]] = "joint_position",
                    blocking: Union[bool, List[bool]] = False):
-        self.robot.move_joints_radian_trajectory(np.array([action]))
+        # self.robot.move_joints_radian_trajectory(np.array([action]))
+        self.robot.reach_joints_radian(np.array(action))
 
     def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, List[str]] = "gripper_position",
                     blocking: Union[bool, List[bool]] = False):
-        self.robot.set_gripper_opening(action[0])
+        self.robot.set_gripper_opening(action[0], blocking)
 
     def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
         # TODO: gripper bug
