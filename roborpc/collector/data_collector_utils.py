@@ -145,7 +145,8 @@ class TrajectoryReader:
 
             if length is None:
                 length = curr_length
-            assert curr_length == length, f"key: {key}, curr_length: {curr_length}, length: {length}"
+            if not key == "language_distilbert":
+                assert curr_length == length, f"key: {key}, curr_length: {curr_length}, length: {length}"
         return length
 
     def read_timestep(self, index: Optional[int] = None):
@@ -169,7 +170,8 @@ class TrajectoryReader:
             if isinstance(curr_data, h5py.Group):
                 data_dict[key] = self.load_hdf5_to_dict(curr_data, index)
             elif isinstance(curr_data, h5py.Dataset):
-                data_dict[key] = curr_data[index]
+                if not key == "language_distilbert":
+                    data_dict[key] = curr_data[index]
             else:
                 raise ValueError
 
