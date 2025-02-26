@@ -1,22 +1,20 @@
 [roborpc.robot_env]
-env_update_rate = 10
-use_controller = true
+env_update_rate = 5
+use_controller = false
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
 [roborpc.robots]
 # ON or OFF
-robot_ids = [['realman_1']]
+robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
-sever_rpc_ports = ['']
+sever_rpc_ports = ['4098']
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
 ip_address = '192.168.1.18'
-robot_arm_dof = 6
+robot_arm_dof = 7
 robot_gripper_dof = 1
-start_arm_joints = [0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0]
-start_gripper_joints = [0.0]
 
 [roborpc.robots.realman.realman_2]
 ip_address = '192.168.1.19'
@@ -56,50 +54,44 @@ joint_ids = [0, 1, 2, 3, 4, 5, 6]
 joint_signs = [1, -1, 1, -1, 1, 1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
-joint_offsets =  [6.283185307179586, 1.5707963267948966, 4.71238898038469, 1.5707963267948966, 3.141592653589793, 6.283185307179586]
+joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
 gripper_config = [7, 350, 308]
 baudrate = 1000000
 
 [roborpc.robots.dynamixel.dynamixel_controller_realman_1]
-start_joints = [0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
-joint_ids = [1, 2, 3, 4, 5, 6]
-joint_signs = [1, -1, 1, -1, 1, 1]
+start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+joint_ids = [0, 1, 2, 3, 4, 5, 6]
+joint_signs = [1, -1, 1, -1, 1, 1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
-joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586]
-gripper_config = [7, 209, 167]
+joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
+gripper_config = [7, 350, 308]
 baudrate = 1000000
 
 ######### Camera Configuration #########
 # This section defines the camera configuration for the robots.
 [roborpc.cameras]
 # ON or OFF
-camera_ids = [['realsense_camera_1', 'realsense_camera_2', 'realsense_camera_3']]
+camera_ids = [['camera_1', 'camera_2', 'camera_3']]
 server_ips_address = ['127.0.0.1']
-server_rpc_ports = ['']
+server_rpc_ports = ['4098']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
-camera_resolution = [424, 240]
+camera_resolution = [640, 480]
 camera_fps = 30
-camera_serial_number = '148522074815'
+camera_serial_number = '231122070394'
 
 [roborpc.cameras.realsense_camera.realsense_camera_2]
-camera_resolution = [424, 240]
+camera_resolution = [640, 480]
 camera_fps = 30
-camera_serial_number = '148522071978'
-
-[roborpc.cameras.realsense_camera.realsense_camera_3]
-camera_resolution = [424, 240]
-camera_fps = 30
-camera_serial_number = '215122251267'
-
+camera_serial_number = '218622275485'
 
 ######### Controller Configuration #########
 # This section defines the controller configuration for the robots.
 [roborpc.controllers]
 # ON or OFF
-controller_ids = [['dynamixel_controller_realman_1']] #spacemouse_controller_1 #quest_controller_1
-control_robot_ids = [['realman_1']]
+controller_ids = [['keyboard_controller_1']] #spacemouse_controller_1 #quest_controller_1
+control_robot_ids = [['panda_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
 
@@ -112,7 +104,7 @@ sever_rpc_ports = ['']
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.
 [roborpc.collector.data_collector]
-save_data_dir = "/home/yang/yong/data/"
+save_data_dir = "/media/jz08/SSD1/Log/droid/data/"
 action_space = "joint_position"
 gripper_action_space = "gripper_position"
 use_one_side_camera = false # olny record left camera
@@ -131,7 +123,7 @@ use_zed_save_mp4 = false # for H5_MP4
 save_audio = false
 max_timesteps = 0 # 0 (not used) 1000
 dt = 0.02 # act used
-horizon = 300 # 0 for not used
+horizon = 600 # 0 for not used
 use_align_color_depth = false
 camera_fps = 15
 

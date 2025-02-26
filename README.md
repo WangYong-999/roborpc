@@ -1,8 +1,10 @@
 
-# ROBORPC
-Roborpc is a Python package that allows you to communicate with the sim robots and real robots using RPC.
+# MIRO
 
-![Multi-Modality](roborpc.jpg)
+[//]: # (Roborpc is a Python package that allows you to communicate with the sim robots and real robots using RPC.)
+
+[//]: # ()
+[//]: # (![Multi-Modality]&#40;roborpc.jpg&#41;)
 
 
 ## Installation

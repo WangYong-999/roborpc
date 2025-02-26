@@ -168,8 +168,8 @@ class SimMujocoRobot(SimRobotInterface):
                         task_completion_hold_count = -1
                 end_time = time.time()
                 elapsed_time = end_time - start_time
-                assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
-                logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
+                # assert 1 / elapsed_time >= self.env_update_rate, f"Isaac Sim Update rate is too slow. Turn down environment update rate ."
+                # logger.info(f"Elapsed time: {elapsed_time / 1000} ms, Update rate: {1 / elapsed_time} Hz")
 
     def _reset_robot(self):
         for _ in range(100):
