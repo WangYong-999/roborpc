@@ -1,5 +1,6 @@
 
 # MIRO
+### An Intuitive Multi-Task Manipulation Policy for Imitation Learning in Sim and Real Robots
 
 [//]: # (Roborpc is a Python package that allows you to communicate with the sim robots and real robots using RPC.)
 
