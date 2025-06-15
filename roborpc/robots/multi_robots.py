@@ -6,6 +6,7 @@ from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
 from roborpc.robots.panda import Panda
 from roborpc.robots.realman import RealMan
+from roborpc.robots.flexiv import Flexiv
 from roborpc.robots.robot_base import RobotBase
 
 
@@ -36,6 +37,9 @@ class MultiRobots(RobotBase):
             if str(robot_id).startswith("realman"):
                 ip_address = self.robot_config["realman"][robot_id]["ip_address"]
                 self.robots[robot_id] = RealMan(robot_id, ip_address)
+            elif str(robot_id).startswith("flexiv"):
+                ip_address = self.robot_config["flexiv"][robot_id]["ip_address"]
+                self.robots[robot_id] = Flexiv(robot_id, ip_address)
             elif str(robot_id).startswith("panda"):
                 ip_address = self.robot_config["panda"][robot_id]["ip_address"]
                 self.robots[robot_id] = Panda(robot_id, ip_address)
@@ -53,7 +57,6 @@ class MultiRobots(RobotBase):
         return self.robot_ids
 
     def reset_robot_state(self):
-
         joints_state, joints_action_space, joints_blocking = {}, {} ,{}
         gripper_state, gripper_action_space, gripper_blocking = {}, {} ,{}
         for robot_id, robot in self.robots.items():
