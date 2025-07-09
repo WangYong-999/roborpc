@@ -12,9 +12,7 @@ from roborpc.common.logger_loader import logger
 from roborpc.common.config_loader import config
 
 # Flexiv API
-from airexo.device import flexivrdk
-from airexo.helpers.rotation import quat_angle
-from airexo.helpers.logger import ColoredLogger
+import flexivrdk
 
 
 class Flexiv(RobotBase):

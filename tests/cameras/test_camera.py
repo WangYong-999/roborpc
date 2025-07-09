@@ -25,7 +25,7 @@ if __name__ == '__main__':
         try:
             camera_info = camera.read_camera()
             for camera_id, info in camera_info.items():
-                cv2.imshow(camera_id, info['color'])
+                cv2.imshow(camera_id, cv2.cvtColor(info['color'], cv2.COLOR_RGB2BGR))
                 cv2.waitKey(1)
         except (Exception, KeyboardInterrupt) as e:
             print(e)
