@@ -152,7 +152,11 @@ class Flexiv(RobotBase):
         robot_state = {"joint_position": robot_states.q,
                        "joint_velocity": robot_states.dq,
                        "gripper_position": self.get_gripper_position(),
-                       "cartesian_position": self.get_ee_pose()}
+                       "cartesian_position": self.get_ee_pose(),
+                       "joint_torque": robot_states.tau,
+                       "tcp_ext_wrench": robot_states.ext_wrench_in_tcp,
+                       "joint_ext_torque": robot_states.tau_ext,
+                       }
         return robot_state
 
     def get_dofs(self) -> Union[int, Dict[str, int]]:
