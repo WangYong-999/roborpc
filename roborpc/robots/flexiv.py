@@ -21,6 +21,7 @@ class Flexiv(RobotBase):
         super().__init__()
         self._joints_target = None
         self._gripper_target = None
+        self.gripper = None
         self.robot_id = robot_id
         self.ip_address = ip_address
         self.robot: Optional[flexivrdk.Robot] = None
@@ -46,6 +47,7 @@ class Flexiv(RobotBase):
         self.max_acc_rt = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
     def connect_now(self):
+        from roborpc.robots.robotiq_gripper import Robotiq2F85Gripper
         self.robot = flexivrdk.Robot(self.ip_address)
         if self.robot.fault():
             if not self.robot.ClearFault():
@@ -57,7 +59,11 @@ class Flexiv(RobotBase):
         self.robot_arm_dof = config["roborpc"]["robots"]["flexiv"][self.robot_id]["robot_arm_dof"]
         self.robot_gripper_dof = config["roborpc"]["robots"]["flexiv"][self.robot_id]["robot_gripper_dof"]
         self.last_arm_state = [0.0] * self.robot_arm_dof
-        logger.info("Connect to Flexiv Robot.")
+        logger.success("Connect to Flexiv Robot.")
+
+        self.gripper = Robotiq2F85Gripper(port="/dev/ttyUSB0")
+        logger.success("Connect to Robotiq Gripper.")
+
 
     def disconnect_now(self):
         self.robot.Stop()
@@ -68,8 +74,8 @@ class Flexiv(RobotBase):
     def reset_robot_state(self):
         pass
 
-    def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
-                        blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):
+    def set_robot_state(self, state: Dict[str, List[float]],
+                        blocking: Dict[str, bool]):
         for action_space, action in state.items():
             if action_space == "joint_position":
                 self.set_joints(action, action_space)
@@ -77,8 +83,7 @@ class Flexiv(RobotBase):
                 self.set_joint_impedance(self.impedance_joint_stiffness,self.impedance_joint_damping_ratio)
                 self.set_joints(action, action_space)
             if action_space == "gripper_position" :
-                # TODO
-                self.set_gripper(action[0], action_space)
+                self.set_gripper(action , action_space)
 
     def set_ee_pose(self, action: Union[List[float], Dict[str, List[float]]],
                     action_space: Union[str, List[str]] = "cartesian_position",
@@ -100,9 +105,9 @@ class Flexiv(RobotBase):
         self.switch_mode("NRT_JOINT_IMPEDANCE")
         self.robot.SetJointImpedance(stiffness, damping_ratio)
 
-    def set_joints(self, action: Union[List[float], Dict[str, List[float]]],
-                   action_space: Union[str, List[str]] = "joint_position",
-                   blocking: Union[bool, List[bool]] = False):
+    def set_joints(self, action: List[float],
+                   action_space: str = "joint_position",
+                   blocking: bool = False):
         # self.robot.move_joints_radian_trajectory(np.array([action]))
         if self.impedance:
             self.switch_mode("NRT_JOINT_IMPEDANCE")
@@ -140,13 +145,19 @@ class Flexiv(RobotBase):
                 logger.warning("Timeout for send_joint_pos.")
                 has_warned = True
 
-    def set_gripper(self, action: Union[List[float], Dict[str, List[float]]],
-                    action_space: Union[str, List[str]] = "gripper_position",
-                    blocking: Union[bool, List[bool]] = False):
-        # TODO
-        pass
+    def set_gripper(self, action: List[float],
+                    action_space: str = "gripper_position",
+                    blocking: bool = False):
 
-    def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
+        if "gripper_position" == action_space:
+            self.gripper.set_width(action[0] * 255)
+        elif "gripper_velocity" == action_space:
+            self.gripper.set_velocity(action[0] * 255, action[1] * 255)
+        else:
+            raise ValueError("Invalid action space for gripper.")
+
+
+    def get_robot_state(self) -> Dict[str, List[float]]:
 
         robot_states = self.robot.states()
         robot_state = {"joint_position": robot_states.q,
@@ -159,18 +170,19 @@ class Flexiv(RobotBase):
                        }
         return robot_state
 
-    def get_dofs(self) -> Union[int, Dict[str, int]]:
+    def get_dofs(self) -> int:
         return self.robot_arm_dof
 
-    def get_joint_positions(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_joint_positions(self) -> List[float]:
         return list(self.robot.states().q)
 
-    def get_gripper_position(self) -> Union[List[float], Dict[str, List[float]]]:
-        return [self.robot.get_gripper_opening()]
+    def get_gripper_position(self) -> List[float]:
 
-    def get_joint_velocities(self) -> Union[List[float], Dict[str, List[float]]]:
+        return [self.gripper.get_width() /255 ]
+
+    def get_joint_velocities(self) -> List[float]:
         pass
 
-    def get_ee_pose(self) -> Union[List[float], Dict[str, List[float]]]:
+    def get_ee_pose(self) -> List[float]:
         return list(self.robot.get_end_effector_pose())
 
