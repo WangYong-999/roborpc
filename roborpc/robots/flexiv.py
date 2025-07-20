@@ -17,13 +17,13 @@ import flexivrdk
 
 class Flexiv(RobotBase):
 
-    def __init__(self, robot_id: str, ip_address: str):
+    def __init__(self, robot_id: str, robot_serial_number: str):
         super().__init__()
         self._joints_target = None
         self._gripper_target = None
         self.gripper = None
         self.robot_id = robot_id
-        self.ip_address = ip_address
+        self.robot_serial_number = robot_serial_number
         self.robot: Optional[flexivrdk.Robot] = None
         self.last_arm_state = None
         self.robot_arm_dof = None
@@ -48,7 +48,7 @@ class Flexiv(RobotBase):
 
     def connect_now(self):
         from roborpc.robots.robotiq_gripper import Robotiq2F85Gripper
-        self.robot = flexivrdk.Robot(self.ip_address)
+        self.robot = flexivrdk.Robot(self.robot_serial_number)
         if self.robot.fault():
             if not self.robot.ClearFault():
                 raise RuntimeError("Cannot clear faults on the robot.")

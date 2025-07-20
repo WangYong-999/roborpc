@@ -38,8 +38,8 @@ class MultiRobots(RobotBase):
                 ip_address = self.robot_config["realman"][robot_id]["ip_address"]
                 self.robots[robot_id] = RealMan(robot_id, ip_address)
             elif str(robot_id).startswith("flexiv"):
-                ip_address = self.robot_config["flexiv"][robot_id]["ip_address"]
-                self.robots[robot_id] = Flexiv(robot_id, ip_address)
+                robot_serial_number = self.robot_config["flexiv"][robot_id]["robot_serial_number"]
+                self.robots[robot_id] = Flexiv(robot_id, robot_serial_number)
             elif str(robot_id).startswith("panda"):
                 ip_address = self.robot_config["panda"][robot_id]["ip_address"]
                 self.robots[robot_id] = Panda(robot_id, ip_address)
