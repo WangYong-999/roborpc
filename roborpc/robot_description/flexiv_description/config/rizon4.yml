@@ -1,0 +1,177 @@
+robot_cfg:
+  kinematics:
+    use_usd_kinematics: False
+    usd_path: ""
+    usd_robot_root: ""
+    isaac_usd_path: ""
+    urdf_path: "flexiv_Rizon4_kinematics.urdf"
+    base_link: "base_link"
+    ee_link: "flange"
+    asset_root_path: ""
+
+    link_names: [ "flange" ]
+    robot_names_link_names_pair:
+      - "flexiv_1": "flange"
+    robot_names_robot_dof_pair:
+      - "flexiv_1": [ 0, 7 ]
+
+    collision_link_names:
+      [
+        "base_link",
+        "link1",
+        "link2",
+        "link3",
+        "link4",
+        "link5",
+        "link6",
+        "link7",
+      ]
+    collision_spheres:
+      base_link:
+        - "center": [0.0, 0.0, 0.081]
+          "radius": 0.07
+      link1:
+        - "center": [-0.0, 0.0, 0.063]
+          "radius": 0.07
+        - "center": [0.0, -0.025, 0.223]
+          "radius": 0.05
+        - "center": [0.001, -0.014, 0.103]
+          "radius": 0.06
+        - "center": [0.0, -0.022, 0.176]
+          "radius": 0.05
+      link2:
+        - "center": [-0.0, 0.049, 0.0]
+          "radius": 0.055
+        - "center": [0.0, 0.036, 0.139]
+          "radius": 0.06
+        - "center": [0.0, 0.043, 0.068]
+          "radius": 0.05
+      link3:
+        - "center": [0.0, -0.0, 0.045]
+          "radius": 0.05
+        - "center": [-0.014, 0.016, 0.186]
+          "radius": 0.05
+        - "center": [-0.004, 0.009, 0.104]
+          "radius": 0.05
+      link4:
+        - "center": [0.0, 0.05, 0.0]
+          "radius": 0.05
+        - "center": [-0.019, 0.026, 0.138]
+          "radius": 0.05
+        - "center": [-0.012, 0.038, 0.069]
+          "radius": 0.05
+      link5:
+        - "center": [-0.001, 0.0, 0.044]
+          "radius": 0.05
+        - "center": [0.003, -0.024, 0.184]
+          "radius": 0.05
+        - "center": [0.001, -0.013, 0.108]
+          "radius": 0.05
+      link6:
+        - "center": [-0.001, 0.043, 0.0]
+          "radius": 0.045
+        - "center": [-0.002, 0.077, 0.107]
+          "radius": 0.045
+        - "center": [0.009, 0.05, 0.052]
+          "radius": 0.04
+        - "center": [0.033, 0.066, 0.11]
+          "radius": 0.04
+      link7:
+        - "center": [0.0, 0.0, 0.034]
+          "radius": 0.04
+        - "center": [ 0.0, 0.0, 0.042 ]
+          "radius": 0.035
+#        - "center": [ 0.0, -0.0, 0.04 ]
+#          "radius": 0.035
+#        - "center": [ 0.0, -0.0, 0.02 ]
+#          "radius": 0.035
+#        - "center": [ 0.0, -0.01, 0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.015, -0.01 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.0, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.02, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.02, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.04, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.06, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.08, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.0, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.055, 0.01 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.08, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.01, 0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.015, -0.01 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.0, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.02, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.02, 0.005 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.04, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.06, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.08, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, -0.0, -0.0 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.055, 0.01 ]
+#          "radius": 0.01
+#        - "center": [ 0.0, 0.08, 0.005 ]
+#          "radius": 0.01
+
+    collision_sphere_buffer: 0.005
+    extra_collision_spheres: {"attached_object": 4}
+    use_global_cumul: True
+    self_collision_ignore:
+      {
+        "base_link": ["link1", "link2", "link3", "link4"],
+        "link1": ["link2", "link3", "link4"],
+        "link2": ["link3", "link4", "link5"],
+        "link3": ["link4", "link5", "link6", "link7"],
+        "link4": ["link5", "link6", "link7"],
+        "link5": ["link6"],
+        "link6": ["link7"],
+        "link7": [],
+      }
+    self_collision_buffer:
+      {
+        "base_link": 0.0,
+        "link1": 0.0,
+        "link2": 0.0,
+        "link3": 0.0,
+        "link4": 0.0,
+        "link5": 0.0,
+        "link6": 0.0,
+        "link7": 0.0,
+      }
+    mesh_link_names:
+      [
+        "base_link",
+        "link1",
+        "link2",
+        "link3",
+        "link4",
+        "link5",
+        "link6",
+        "link7",
+      ]
+    external_asset_path: null # Use this to add path for externally located assets/robot folder.
+
+    cspace:
+      joint_names: ["joint1","joint2","joint3","joint4","joint5","joint6","joint7"]
+      retract_config: [0.0, -0.2, 0.0, 0.57, 0.0, 0.2, 0.0]
+      null_space_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      cspace_distance_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      max_jerk: 500.0
+      max_acceleration: 15.0

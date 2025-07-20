@@ -38,7 +38,7 @@ class CuroboSolverKinematic(KinematicSolverBase):
             self.robot_path = os.path.join(Path(__file__).absolute().parent.parent,
                                            'robot_description/franka_description')
         elif robot_type == 'flexiv':
-            robot_cfg = 'flexiv.yml'
+            robot_cfg = 'rizon4.yml'
             world_cfg = 'collision_table.yml'
             self.robot_path = os.path.join(Path(__file__).absolute().parent.parent,
                                            'robot_description/flexiv_description')
@@ -113,8 +113,8 @@ class CuroboSolverKinematic(KinematicSolverBase):
 
         # Initialize RobotWorld for collision checking
         robot_world_config = RobotWorldConfig.load_from_config(
-            robot_cfg,
-            world_cfg,
+            self.robot_cfg,
+            self.world_cfg,
             collision_activation_distance=0.01
         )
         self.robot_world = RobotWorld(robot_world_config)
@@ -266,10 +266,8 @@ class CuroboSolverKinematic(KinematicSolverBase):
 
 
 if __name__ == '__main__':
-    solver = CuroboSolverKinematic()
-    joint_angles = [-0.001229998898153242, -0.78373070703473, 0.00033452204524119444,
-                    1.3621342130897784, -0.002939444554553038, 1.5585773693838316,
-                    0.7862526640851296]
+    solver = CuroboSolverKinematic("flexiv")
+    joint_angles = [0.00, -0.87, 0.14, 1.79, -0.16, 2.29, -0.53]
 
     collision_result, world_collision_distance, self_collision_distance = solver.collision_check(joint_angles)
     print("Collision check result:", collision_result, world_collision_distance, self_collision_distance)
