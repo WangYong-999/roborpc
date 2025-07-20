@@ -124,7 +124,9 @@ class Dynamixel(RobotBase):
         pass
 
     def get_robot_state(self) -> Dict[str, Dict[str, List[float]]]:
-        pos = (self._driver.get_joints() - self._joint_offsets) * self._joint_signs
+        j,v = self._driver.get_joints(vel=True)
+        pos = (j - self._joint_offsets) * self._joint_signs
+        vel = v * self._joint_signs
         assert len(pos) == len(self._joint_ids)
 
         if self.gripper_open_close is not None:
@@ -146,7 +148,9 @@ class Dynamixel(RobotBase):
             "gripper_position": list(pos[-1:]),
             "joint_position": list(pos[:-1]),
             "robot_positions": list(pos),
-            # "joint_velocities": arm_joints_velocities,
+            "joint_velocity": list(vel[:-1]),
+            "gripper_velocity": list(vel[-1:]),
+            "robot_velocities": list(vel),
             # "joint_torques_computed": arm_joint_torques_computed,
             # "prev_joint_torques_computed": arm_joint_torques_computed,
             # "prev_joint_torques_computed_safened": arm_joint_torques_computed,
