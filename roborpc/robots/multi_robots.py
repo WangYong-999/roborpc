@@ -6,7 +6,7 @@ from roborpc.common.config_loader import config
 from roborpc.common.logger_loader import logger
 from roborpc.robots.panda import Panda
 from roborpc.robots.realman import RealMan
-from roborpc.robots.flexiv import Flexiv
+from roborpc.robots.flexiv import Flexiv, FlexivV2
 from roborpc.robots.robot_base import RobotBase
 
 
@@ -38,8 +38,14 @@ class MultiRobots(RobotBase):
                 ip_address = self.robot_config["realman"][robot_id]["ip_address"]
                 self.robots[robot_id] = RealMan(robot_id, ip_address)
             elif str(robot_id).startswith("flexiv"):
-                robot_serial_number = self.robot_config["flexiv"][robot_id]["robot_serial_number"]
-                self.robots[robot_id] = Flexiv(robot_id, robot_serial_number)
+                flexiv_version = self.robot_config["flexiv"][robot_id]["flexiv_version"]
+                if flexiv_version == "0.8":
+                    robot_ip_address = self.robot_config["flexiv"][robot_id]["robot_ip_address"]
+                    local_ip_address = self.robot_config["flexiv"][robot_id]["local_ip_address"]
+                    self.robots[robot_id] = FlexivV2(robot_id, robot_ip_address, local_ip_address)
+                elif flexiv_version == "1.7":
+                    robot_serial_number = self.robot_config["flexiv"][robot_id]["robot_serial_number"]
+                    self.robots[robot_id] = Flexiv(robot_id, robot_serial_number)
             elif str(robot_id).startswith("panda"):
                 ip_address = self.robot_config["panda"][robot_id]["ip_address"]
                 self.robots[robot_id] = Panda(robot_id, ip_address)
@@ -67,17 +73,22 @@ class MultiRobots(RobotBase):
             #     start_arm_joints = [start_arm_joints]
             # robot_state[robot_id] = {'joint_position': start_arm_joints, 'gripper_position': start_gripper_position}
             # blocking_info[robot_id] = {'joint_position': True, 'gripper_position': True}
+            if str(robot_name).startswith("flexiv"):
+                robot.reset_robot_state()
+                robot.set_joints(start_arm_joints, 'joint_position', True)
+                robot.set_gripper(start_gripper_position, 'gripper_position', True)
             joints_state[robot_id] = start_arm_joints
             gripper_state[robot_id] = start_gripper_position
             joints_action_space[robot_id] = 'joint_position'
             gripper_action_space[robot_id] = 'gripper_position'
             joints_blocking[robot_id] = True
             gripper_blocking[robot_id] = True
+
         print("successfully reset robot")
         # self.set_robot_state(robot_state, blocking_info)
         # TODO
-        self.set_joints(joints_state, joints_action_space, joints_blocking)
-        self.set_gripper(gripper_state, gripper_action_space, gripper_blocking)
+        # self.set_joints(joints_state, joints_action_space, joints_blocking)
+        # self.set_gripper(gripper_state, gripper_action_space, gripper_blocking)
 
     def set_robot_state(self, state: Union[Dict[str, List[float]], Dict[str, Dict[str, List[float]]]],
                         blocking: Union[Dict[str, bool], Dict[str, Dict[str, bool]]]):

@@ -74,7 +74,7 @@ class DynamixelController(ControllerBase):
 
     def reset_state(self):
         self.state = {
-            "gello_joints": {},
+            "dynamixel_joints": {},
             "poses": {},
             "buttons": {"A": False, "B": False},
             "movement_enabled": False,
@@ -85,7 +85,7 @@ class DynamixelController(ControllerBase):
         self.move_start_flag = True
         self.move_start_num = 0
 
-    def reset_gello_start_pos(self):
+    def reset_dynamixel_start_pos(self):
         self.goto_start_pos = True
 
     def _update_internal_state(self, num_wait_sec=5, hz=50):
@@ -95,7 +95,7 @@ class DynamixelController(ControllerBase):
 
             time_since_read = time.time() - last_read_time
             dyna_joints = np.array(self.robot.get_robot_state()["robot_positions"])
-            self.state["gello_joints"][self.controller_id] = dyna_joints
+            self.state["dynamixel_joints"][self.controller_id] = dyna_joints
             self.state["controller_on"] = time_since_read < num_wait_sec
             self.update_sensor = True
             if self.button_A_pressed:
@@ -109,14 +109,14 @@ class DynamixelController(ControllerBase):
 
 
     def process_reading(self):
-        gello_joints = np.asarray(self.state["gello_joints"][self.controller_id])
-        self.gello_joints = {"gello_joints": gello_joints}
+        dynamixel_joints = np.asarray(self.state["dynamixel_joints"][self.controller_id])
+        self.dynamixel_joints = {"dynamixel_joints": dynamixel_joints}
 
     def go_start_joints(self, state_dict):
         logger.info("Going to start joints")
-        while self.state["gello_joints"] == {}:
-            logger.info("No gello_joints yet, waiting...")
-        start_pos = np.asarray(self.state["gello_joints"][self.controller_id])
+        while self.state["dynamixel_joints"] == {}:
+            logger.info("No dynamixel_joints yet, waiting...")
+        start_pos = np.asarray(self.state["dynamixel_joints"][self.controller_id])
 
         obs_joints = state_dict["joint_position"]
         obs_gripper = state_dict["gripper_position"]
@@ -156,7 +156,7 @@ class DynamixelController(ControllerBase):
         if self.move_start_num == 24:
             self.move_start_flag = False
         if self.move_start_flag:
-            command_joints = np.asarray(self.state["gello_joints"][self.controller_id])
+            command_joints = np.asarray(self.state["dynamixel_joints"][self.controller_id])
             current_joints = np.concatenate([state_dict["joint_position"], state_dict["gripper_position"]])
             delta = command_joints - current_joints
             max_joint_delta = np.abs(delta).max()
@@ -165,7 +165,7 @@ class DynamixelController(ControllerBase):
             return current_joints + delta
 
         joints = np.concatenate([state_dict["joint_position"], state_dict["gripper_position"]])
-        action = np.asarray(self.state["gello_joints"][self.controller_id])
+        action = np.asarray(self.state["dynamixel_joints"][self.controller_id])
         if (action - joints > 0.5).any():
             logger.info("Joints are too big, exiting...")
             joint_index = np.where(action - joints > 0.5)
@@ -182,7 +182,7 @@ class DynamixelController(ControllerBase):
             self.process_reading()
             self.update_sensor = False
 
-        return np.asarray(self.state["gello_joints"][self.controller_id])
+        return np.asarray(self.state["dynamixel_joints"][self.controller_id])
 
     def get_info(self) -> Union[Dict[str, Dict[str, bool]], Dict[str, bool]]:
         return {

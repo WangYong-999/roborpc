@@ -39,6 +39,10 @@ class RobotEnv(gym.Env):
                 self.kinematic_solver = CuroboSolverKinematic('realman')
             elif robot_id.startswith('panda'):
                 self.kinematic_solver = CuroboSolverKinematic('panda')
+            elif robot_id.startswith('flexiv'):
+                self.kinematic_solver = CuroboSolverKinematic('flexiv')
+            else:
+                raise ValueError(f"Unsupported robot type: {robot_id}")
 
         self.use_controller = config['roborpc']['robot_env']['use_controller']
         if self.use_controller:
@@ -86,17 +90,19 @@ class RobotEnv(gym.Env):
                     action_info[action_id].update({'joint_position': action_value})
                     joints_angle = {action_id: new_action_value}
                     # action_info[action_id].update({'cartesian_position': self.kinematic_solver.forward_kinematics(joints_angle)[action_id]})
-                    # collision_check, _, _ = self.kinematic_solver.collision_check(joints_angle)[action_id]
-                    # if collision_check:
-                    #     print(f"Collision check for {action_id} with {action_value}")
-                    #     new_action_value = self.robots.get_robot_state()[action_id]['joint_position']
-                    # else:
-                    #     new_action_value = new_action_value
+                    collision_check, _, _ = self.kinematic_solver.collision_check(joints_angle)[action_id]
+                    if collision_check:
+                        print(f"Collision check for {action_id} with {action_value}")
+                        new_action_value = self.robots.get_robot_state()[action_id]['joint_position']
+                    else:
+                        new_action_value = new_action_value
 
                     new_action[action_id].update({'joint_position': new_action_value})
                 if action_space_id == 'gripper_position':
                     if blocking is True:
                         blocking_info[action_id].update({'gripper_position': True})
+                    else:
+                        blocking_info[action_id].update({'gripper_position': False})
                     action_info[action_id].update({'gripper_position': action_value})
                     new_action[action_id].update({'gripper_position': action_value})
         self.robots.set_robot_state(new_action, blocking_info)

@@ -81,6 +81,8 @@ robot_cfg:
           "radius": 0.04
         - "center": [ 0.0, 0.0, 0.042 ]
           "radius": 0.035
+        - "center": [ 0.0, 0.0, 0.1 ]
+          "radius": 0.05
 #        - "center": [ 0.0, -0.0, 0.04 ]
 #          "radius": 0.035
 #        - "center": [ 0.0, -0.0, 0.02 ]

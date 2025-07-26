@@ -20,18 +20,10 @@ ADDR_TORQUE_ENABLE = 64
 ADDR_GOAL_POSITION = 116
 LEN_GOAL_POSITION = 4
 ADDR_PRESENT_POSITION = 132
-# ADDR_PRESENT_POSITION = 140
+ADDR_PRESENT_POSITION = 140
 LEN_PRESENT_POSITION = 4
 TORQUE_ENABLE = 1
 TORQUE_DISABLE = 0
-
-ADDR_GOAL_CURRENT = 102
-LEN_GOAL_CURRENT = 2
-ADDR_PRESENT_VELOCITY = 128
-LEN_PRESENT_VELOCITY = 4
-ADDR_OPERATING_MODE = 11
-CURRENT_CONTROL_MODE = 0
-POSITION_CONTROL_MODE = 3
 
 
 class DynamixelDriverProtocol(Protocol):
@@ -112,7 +104,6 @@ class DynamixelDriver(DynamixelDriverProtocol):
         """
         self._ids = ids
         self._joint_angles = None
-        self._joint_velocity = None
         self._lock = Lock()
 
         # Initialize the port handler, packet handler, and group sync read/write
@@ -219,54 +210,36 @@ class DynamixelDriver(DynamixelDriverProtocol):
     def _read_joint_angles(self):
         # Continuously read joint angles and update the joint_angles array
         while not self._stop_thread.is_set():
-            # 1khz
             time.sleep(0.001)
             with self._lock:
-                _positions = np.zeros(len(self._ids), dtype=int)
-                _velocities = np.zeros(len(self._ids), dtype=int)
-
-                # perform the group sync read transaction
+                _joint_angles = np.zeros(len(self._ids), dtype=int)
                 dxl_comm_result = self._groupSyncRead.txRxPacket()
                 if dxl_comm_result != COMM_SUCCESS:
-                    raise RuntimeError(f"Warning, communication failed: {dxl_comm_result}")
-
+                    # print(f"warning, comm failed: {dxl_comm_result}")
+                    continue
                 for i, dxl_id in enumerate(self._ids):
-                    # read velocity data
-                    if self._groupSyncRead.isAvailable(dxl_id, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY):
-                        velocity = self._groupSyncRead.getData(dxl_id, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
-                        # apply sign correction
-                        if velocity > 0x7FFFFFFF:
-                            velocity -= 0x100000000
-                        _velocities[i] = velocity
+                    if self._groupSyncRead.isAvailable(
+                        dxl_id, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
+                    ):
+                        angle = self._groupSyncRead.getData(
+                            dxl_id, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
+                        )
+                        angle = np.int32(np.uint32(angle))
+                        _joint_angles[i] = angle
                     else:
-                        raise RuntimeError(f"Failed to get velocity for Dynamixel with ID {dxl_id}")
+                        raise RuntimeError(
+                            f"Failed to get joint angles for Dynamixel with ID {dxl_id}"
+                        )
+                self._joint_angles = _joint_angles
+            # self._groupSyncRead.clearParam() # TODO what does this do? should i add it
 
-                    # read position data
-                    if self._groupSyncRead.isAvailable(dxl_id, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION):
-                        position = self._groupSyncRead.getData(dxl_id, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-                        # apply sign correction
-                        if position > 0x7FFFFFFF:
-                            position -= 0x100000000
-                        _positions[i] = position
-                    else:
-                        raise RuntimeError(f"Failed to get position for Dynamixel with ID {dxl_id}")
-
-                self._joint_angles = _positions
-                self._joint_velocity = _velocities
-
-        # self._groupSyncRead.clearParam() # TODO what does this do? should i add it
-
-    def get_joints(self, vel = True):
+    def get_joints(self) -> np.ndarray:
         # Return a copy of the joint_angles array to avoid race conditions
         while self._joint_angles is None:
             time.sleep(0.1)
         with self._lock:
             _j = self._joint_angles.copy()
-            _v = self._joint_velocity.copy()
-        if vel:
-            return _j / 2048.0 * np.pi, _v * 0.229 * 2 * np.pi / 60
-        else:
-            return _j / 2048.0 * np.pi
+        return _j / 2048.0 * np.pi
 
     def close(self):
         self._stop_thread.set()

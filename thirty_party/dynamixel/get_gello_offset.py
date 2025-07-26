@@ -2,9 +2,9 @@ from typing import Tuple
 
 import numpy as np
 
-from dynamixel.driver import DynamixelDriver
+from driver import DynamixelDriver
 from dataclasses import dataclass
-from common.config_loader import config as common_config
+from roborpc.common.config_loader import config as common_config
 
 
 @dataclass

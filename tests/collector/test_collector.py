@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     while True:
         try:
-            robot_env.reset()
+            # robot_env.reset()
             collector.collect_trajectory(action_interpolation=False)
         except (Exception, KeyboardInterrupt) as e:
             print(e)

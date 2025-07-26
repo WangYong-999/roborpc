@@ -7,15 +7,25 @@ if __name__ == '__main__':
     robot_env = RobotEnv()
     controller = robot_env.controllers
 
+    # move leader position
+    move_leader_pos = False
+
+
     while True:
         try:
+            if not move_leader_pos:
+                robot_env.reset()
+                robot_obs, camera_obs = robot_env.get_observation()
+                action = controller.forward(robot_obs)
+                robot_env.step(action, blocking=True)
+                move_leader_pos = True
+
             robot_obs, camera_obs = robot_env.get_observation()
-            # print(camera_obs)
             # print(robot_obs)
             action = controller.forward(robot_obs)
-            result = action_linear_interpolation(robot_obs, action)
-            print(result)
-            robot_env.step(result)
+            # print(action)
+            # action = action_linear_interpolation(robot_obs, action)
+            robot_env.step(action)
         except (Exception, KeyboardInterrupt) as e:
             print(e)
             pid = subprocess.run(["pgrep", "-f", "test_controller"], capture_output=True)

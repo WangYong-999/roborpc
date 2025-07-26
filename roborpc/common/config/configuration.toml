@@ -1,6 +1,6 @@
 [roborpc.robot_env]
-env_update_rate = 10
-use_controller = true
+env_update_rate = 10  # save data
+use_controller = false
 
 ######### Robot Environment Configuration #########
 # This section defines the environment configuration for the robots.
@@ -12,12 +12,15 @@ sever_rpc_ports = ['']
 
 [roborpc.robots.flexiv]
 [roborpc.robots.flexiv.flexiv_1]
-ip_address = '192.168.2.100'
-robot_serial_number = 'Rizon4-062150'
+flexiv_version = '1.7'  # 0.8 or 1.7
+robot_ip_address = '192.168.2.100'
+local_ip_address = '192.168.2.102'
+robot_serial_number = 'Rizon4-062206'
 robot_arm_dof = 7
 robot_gripper_dof = 1
-start_arm_joints = [0.00, -0.87, 0.14, 1.79, -0.16, 2.29, -0.53]
+start_arm_joints = [-1.5706210136413574, 0.0, 0.0, 1.5706210136413574, 0.0, 0.0, 0.0]
 start_gripper_joints = [0.0]
+use_joint_impedance = true
 
 [roborpc.robots.realman]
 [roborpc.robots.realman.realman_1]
@@ -79,13 +82,14 @@ baudrate = 1000000
 
 
 [roborpc.robots.dynamixel.dynamixel_controller_flexiv_1]
-start_joints = [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] # panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
+start_joints = [-1.5706210136413574, 0.0, 0.0, 1.5706210136413574, 0.0, 0.0, 0.0, 0.0]
+#  panda: [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0], realman: [0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0] start_joints  [0.0, 0.0, 0.0, -1.5707963267948966, 0.0, 1.5707963267948966, 0.0, 0.0]
 joint_ids = [0, 1, 2, 3, 4, 5, 6]
-joint_signs = [1, -1, 1, -1, 1, 1, 1]
+joint_signs = [1, 1, 1, 1, 1, -1, 1]
 gripper = true
 port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5837053188-if00"
-joint_offsets =  [3.141592653589793, 3.141592653589793, 6.283185307179586, 1.5707963267948966, 0.0, 6.283185307179586, 6.283185307179586]
-gripper_config = [7, 350, 308]
+joint_offsets =  [6.283185307179586, 3.141592653589793, 3.141592653589793, 4.71238898038469, 3.141592653589793, 0.0, 3.141592653589793]
+gripper_config = [7, 204, 162]
 baudrate = 1000000
 
 ######### Camera Configuration #########
@@ -97,27 +101,27 @@ server_ips_address = ['127.0.0.1']
 server_rpc_ports = ['']
 
 [roborpc.cameras.realsense_camera.realsense_camera_1]
-camera_resolution = [640, 480]
+camera_resolution = [424, 240]
 camera_fps = 30
-camera_serial_number = '231122070394'
+camera_serial_number = '230322276930'
 
 [roborpc.cameras.realsense_camera.realsense_camera_2]
-camera_resolution = [640, 480]
+camera_resolution = [424, 240]
 camera_fps = 30
-camera_serial_number = '218622275485'
+camera_serial_number = '218622271091'
 
 [roborpc.cameras.realsense_camera.realsense_camera_3]
-camera_resolution = [640, 480]
+camera_resolution = [424, 240]
 camera_fps = 30
-camera_serial_number = '218622275485'
+camera_serial_number = '233522073490'
 
 
 ######### Controller Configuration #########
 # This section defines the controller configuration for the robots.
 [roborpc.controllers]
 # ON or OFF
-controller_ids = [['dynamixel_controller_flexiv_1']] #spacemouse_controller_1 #quest_controller_1 keyboard_controller_1
-control_robot_ids = [['panda_1']]
+controller_ids = [['dynamixel_controller_flexiv_1']] #spacemouse_controller_1 #quest_controller_1 keyboard_controller_1, dynamixel_controller_flexiv_1
+control_robot_ids = [['flexiv_1']]
 server_ips_address = ['127.0.0.1']
 sever_rpc_ports = ['']
 
@@ -130,11 +134,12 @@ sever_rpc_ports = ['']
 ######### Data Collector Configuration #########
 # This section defines the data collector configuration for the robots.
 [roborpc.collector.data_collector]
-save_data_dir = "/media/roboticlab/D2666AD1666AB63F/yong_data/"
+#save_data_dir = "/media/roboticlab/D2666AD1666AB63F/yong_data/"
+save_data_dir = "/home/roboticlab/yong/data/"
 action_space = "joint_position"
 gripper_action_space = "gripper_position"
 dt = 0.02 # act used
-horizon = 600 # 0 for not used
+horizon = 300 # 0 for not used
 
 ######### Isaac Sim Robot Configuration #########
 # This section defines the simulation robot configuration for the robots.

@@ -13,6 +13,7 @@ pyquaternion
 quaternion
 tyro
 ur-rtde
+pyserial==3.5
 xarm
 xarm-python-sdk
 #numpy-quaternion

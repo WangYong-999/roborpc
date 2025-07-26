@@ -43,19 +43,7 @@ class KeyboardController(ControllerBase):
         self.button_A_pressed = False
         self.button_B_pressed = False
         self.last_state_lock = threading.Lock()
-        spacemouse_thread = threading.Thread(target=self.run_spacemouse_thread)
         threading.Thread(target=self.run_key_listen).start()
-        spacemouse_thread.start()
-
-    def run_spacemouse_thread(self):
-        while True:
-            if self.spacemouse is not None:
-                state = self.spacemouse.read()
-                with self.last_state_lock:
-                    self.last_state = state
-                time.sleep(0.001)
-            else:
-                time.sleep(0.001)
 
     def run_key_listen(self):
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
@@ -138,15 +126,6 @@ class KeyboardController(ControllerBase):
             logger.error(f"Unknown key {key}")
 
     def connect_now(self) -> Union[bool, Dict[str, bool]]:
-        import pyspacemouse
-        if self.device_path is None:
-            self.spacemouse = pyspacemouse.open()
-        else:
-            self.spacemouse = pyspacemouse.open()
-        if self.spacemouse is None:
-            logger.error("Failed to connect to SpaceMouse")
-            return False
-        logger.success("Connected to SpaceMouse")
         return True
 
     def disconnect_now(self) -> Union[bool, Dict[str, bool]]:

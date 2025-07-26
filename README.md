@@ -28,8 +28,6 @@ git clone https://github.com/WangYong-999/robosuite.git
 cd robosuite
 pip install -r requirements.txt
 pip install -e .
-
-
 ```
 
 # Usage

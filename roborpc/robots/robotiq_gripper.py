@@ -520,13 +520,13 @@ def test1():
     gripper.disconnect()
 
 def test2():
-    gripper = Robotiq2F85Gripper(port="/dev/ttyUSB0")
+    gripper = Robotiq2F85Gripper(port="/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_AB0MLQCE-if00-port0")
     # gripper.activate()
-    gripper.set_width(20)
-    gripper.open_gripper()
+    gripper.set_width(0.055)
+    # gripper.open_gripper()
     # time.sleep(1)
     # gripper.close_gripper()
-    gripper.stop()
+    # gripper.stop()
 
 def main():
     test2()
