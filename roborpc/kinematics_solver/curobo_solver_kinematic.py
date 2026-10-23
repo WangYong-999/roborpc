@@ -1,0 +1,281 @@
+import os
+from pathlib import Path
+from typing import Dict, List, Union, Optional, Tuple
+import numpy as np
+import transforms3d as t3d
+import torch
+from curobo.geom.sdf.world import CollisionCheckerType
+from curobo.geom.types import WorldConfig
+from curobo.types.base import TensorDeviceType
+from curobo.types.math import Pose as CuroboPose
+from curobo.util_file import load_yaml
+from curobo.wrap.reacher.ik_solver import IKSolver, IKSolverConfig
+from curobo.wrap.model.robot_world import RobotWorld, RobotWorldConfig
+
+from roborpc.common.config_loader import config
+from roborpc.common.logger_loader import logger
+from roborpc.kinematics_solver.kinematic_solver_base import KinematicSolverBase
+
+tensor_args = TensorDeviceType()
+
+
+class CuroboSolverKinematic(KinematicSolverBase):
+
+    def __init__(self, robot_type: str = 'panda'):
+        """
+        Initialize the CuroboSolverKinematic class.
+
+        :param robot_type: The type of the robot, include 'panda', 'ur5', 'xarm', 'realman'.
+        """
+        super().__init__()
+        if robot_type == 'realman':
+            robot_cfg = 'rm75_6f.yml'
+            world_cfg = 'collision_table.yml'
+            self.robot_path = os.path.join(Path(__file__).absolute().parent.parent, 'robot_description/rm_description')
+        elif robot_type == 'panda':
+            robot_cfg = 'franka.yml'
+            world_cfg = 'collision_table.yml'
+            self.robot_path = os.path.join(Path(__file__).absolute().parent.parent,
+                                           'robot_description/franka_description')
+        elif robot_type == 'flexiv':
+            robot_cfg = 'flexiv.yml'
+            world_cfg = 'collision_table.yml'
+            self.robot_path = os.path.join(Path(__file__).absolute().parent.parent,
+                                           'robot_description/flexiv_description')
+        else:
+            raise ValueError(f"Curobo Kinematic Solver Unsupported robot type: {robot_type}")
+        self.robot_names_link_names_pair = None
+        self.robot_names_robot_dof_pair = None
+        self.default_joint = None
+        self.link_retract_pose = None
+        self.ee_link_name = None
+        self.ee_robot_name = None
+        self.robot_cfg = None
+        self.world_cfg = None
+        self.plan_config = None
+        self.joints_name = None
+        self.ik_solver = None
+        self.robot_world = None
+
+        self.load_config(robot_cfg, world_cfg)
+
+    def load_config(
+            self,
+            robot_cfg: str,
+            world_cfg: str,
+            collision_check: bool = True,
+            obstacle_cuboids_cache: int = 10,
+            obstacle_mesh_cache: int = 20,
+    ):
+        robot_cfg_path = os.path.join(self.robot_path, 'config', robot_cfg)
+        world_cfg_path = os.path.join(self.robot_path, 'config', world_cfg)
+        self.robot_cfg = load_yaml(robot_cfg_path)['robot_cfg']
+        self.ee_link_name = self.robot_cfg['kinematics']['ee_link']
+        self.robot_names_link_names_pair = self.robot_cfg['kinematics']['robot_names_link_names_pair'][0]
+        self.robot_names_robot_dof_pair = self.robot_cfg['kinematics']['robot_names_robot_dof_pair'][0]
+        self.robot_cfg['kinematics'].pop('robot_names_link_names_pair')
+        self.robot_cfg['kinematics'].pop('robot_names_robot_dof_pair')
+        self.default_joint = self.robot_cfg["kinematics"]["cspace"]["retract_config"]
+        urdf_path = self.robot_cfg['kinematics']['urdf_path']
+        asset_root_path = '../robot_description' + os.path.dirname(urdf_path)
+        self.robot_cfg['kinematics']['urdf_path'] = urdf_path
+        self.robot_cfg['kinematics']['asset_root_path'] = asset_root_path
+        self.robot_cfg['kinematics']['external_asset_path'] = self.robot_path
+        self.robot_cfg['kinematics']['external_robot_configs_path'] = self.robot_path
+
+        world_cfg_table = WorldConfig.from_dict(load_yaml(world_cfg_path))
+        world_cfg_table.cuboid[0].pose[2] -= 0.02  # table
+        world_cfg_mesh = WorldConfig.from_dict(load_yaml(world_cfg_path)).get_mesh_world()
+        world_cfg_mesh.mesh[0].name += 'mesh'
+        world_cfg_mesh.mesh[0].pose[2] = -10.5
+        self.world_cfg = WorldConfig(cuboid=world_cfg_table.cuboid, mesh=world_cfg_mesh.mesh)
+
+        self.joints_name = self.robot_cfg['kinematics']['cspace']['joint_names']
+
+        ik_config = IKSolverConfig.load_from_robot_config(
+            self.robot_cfg,
+            self.world_cfg,
+            rotation_threshold=0.05,
+            position_threshold=0.001,
+            num_seeds=20,
+            self_collision_check=collision_check,
+            self_collision_opt=collision_check,
+            tensor_args=tensor_args,
+            use_cuda_graph=True,
+            collision_checker_type=CollisionCheckerType.MESH,
+            collision_cache={
+                'obb': obstacle_cuboids_cache,
+                'mesh': obstacle_mesh_cache
+            },
+            # use_fixed_samples=True,
+        )
+        self.ik_solver = IKSolver(ik_config)
+
+        # Initialize RobotWorld for collision checking
+        robot_world_config = RobotWorldConfig.load_from_config(
+            robot_cfg,
+            world_cfg,
+            collision_activation_distance=0.01
+        )
+        self.robot_world = RobotWorld(robot_world_config)
+
+        # Warm Up
+        logger.info('IK Warm Up...')
+        self.warm_up()
+        logger.info('IK Warm Up Done!')
+
+    def warm_up(self):
+        link_poses = {}
+        q_sample = self.ik_solver.sample_configs(1)
+        kin_state = self.ik_solver.fk(q_sample)
+        ee_pose = CuroboPose(position=tensor_args.to_device(kin_state.ee_position),
+                             quaternion=tensor_args.to_device(kin_state.ee_quaternion))
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            if link_name != self.ee_link_name:
+                link_poses[link_name] = kin_state.link_pose[link_name].to_list()
+            else:
+                self.ee_robot_name = robot_name
+        for i in range(5):
+            _ = self.ik_solver.solve_batch(ee_pose, link_poses=link_poses)
+        torch.cuda.synchronize()
+
+    def collision_check(self, joint_angles: Union[List[float], Dict[str, List[float]]]) :
+        """
+        Check for collisions given joint angles.
+
+        :param joint_angles: Joint angles as a list or dictionary of joint angles for each robot.
+        :return: Dictionary containing world and self collision distances.
+        """
+        joint_angles_list = []
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            if isinstance(joint_angles, list):
+                joint_angles_list.extend(joint_angles)
+            else:
+                joint_angles_list.extend(joint_angles[robot_name])
+
+        # Convert to tensor with proper shape [1, n_dof]
+        q_tensor = tensor_args.to_device([joint_angles_list]).reshape(1, -1)
+
+        # Get collision distances
+        world_distance, self_distance = self.robot_world.get_world_self_collision_distance_from_joints(q_tensor)
+
+        if isinstance(joint_angles, list):
+            world_collision_distance = world_distance.cpu().numpy()[0]
+            self_collision_distance = self_distance.cpu().numpy()[0]
+            is_collision = world_collision_distance > 0 or self_collision_distance > 0
+            collision_result = is_collision, world_collision_distance, self_collision_distance
+        else:
+            collision_result = {}
+            i = 0
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                world_collision_distance = world_distance.cpu().numpy()[i]
+                self_collision_distance = self_distance.cpu().numpy()[i]
+                is_collision = world_collision_distance > 0 or self_collision_distance > 0
+
+                collision_result[robot_name] = is_collision, world_collision_distance, self_collision_distance
+                i += 1
+
+        return collision_result
+
+
+    def forward_kinematics(self, joint_angles: Union[List[float], Dict[str, List[float]]]) \
+            -> Union[List[float], Dict[str, List[float]]]:
+        joint_angles_list = []
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            if isinstance(joint_angles, list):
+                joint_angles_list.extend(joint_angles)
+            else:
+                joint_angles_list.extend(joint_angles[robot_name])
+        state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
+        ee_position = state.ee_position.cpu().numpy()[0]
+        ee_wxyz = state.ee_quaternion.cpu().numpy()[0]
+        if isinstance(joint_angles, list):
+            link_pose = np.concatenate([ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
+        else:
+            link_pose = {}
+            link_pose[self.ee_robot_name] = np.concatenate(
+                [ee_position, t3d.euler.quat2euler(ee_wxyz, axes='sxyz')]).tolist()
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                if link_name != self.ee_link_name:
+                    link_pose[robot_name] = state.link_pose[link_name].to_list()
+        return link_pose
+
+    def forward_batch_kinematics(self, joint_angles: Dict[str, List[List[float]]]) -> Dict[str, List[List[float]]]:
+        link_pose = {}
+        joint_angles_list = []
+        link_pose_list = []
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            joint_angles_list.append(np.array(joint_angles[robot_name]))
+        joint_angles_list = np.array(joint_angles_list)
+        joint_angles_list = joint_angles_list.reshape((-1, 7))
+        state = self.ik_solver.fk(tensor_args.to_device(joint_angles_list))
+        ee_position = state.ee_position.cpu().numpy()
+        ee_wxyz = state.ee_quaternion.cpu().numpy()
+        for i in range(ee_position.shape[0]):
+            link_pose_list.append(np.concatenate(
+                [ee_position[i], t3d.euler.quat2euler(ee_wxyz[i], axes='sxyz')]).tolist())
+        link_pose[self.ee_robot_name] = link_pose_list
+        for robot_name, link_name in self.robot_names_link_names_pair.items():
+            link_pose_position = state.link_pose[link_name].position.cpu().numpy()
+            link_pose_wxyz = state.link_pose[link_name].quaternion.cpu().numpy()
+            if link_name != self.ee_link_name:
+                link_pose_list = []
+                for i in range(link_pose_position.shape[0]):
+                    link_pose_list.append(np.concatenate([link_pose_position[i],
+                                                          t3d.euler.quat2euler(link_pose_wxyz[i],
+                                                                               axes='sxyz')]).tolist())
+                link_pose[robot_name] = link_pose_list
+        return link_pose
+
+    def inverse_kinematics(self, pose: Union[List[float], Dict[str, List[float]]]) \
+            -> Optional[Union[List[float], Dict[str, List[float]]]]:
+        link_poses = {}
+        if isinstance(pose, list):
+            ee_pose = CuroboPose(position=tensor_args.to_device(pose[:3]),
+                                 quaternion=tensor_args.to_device(
+                                     t3d.euler.euler2quat(*pose[3:], axes='sxyz')))
+        else:
+            ee_pose = CuroboPose(position=tensor_args.to_device(pose[self.ee_robot_name][:3]),
+                                 quaternion=tensor_args.to_device(
+                                     t3d.euler.euler2quat(*pose[self.ee_robot_name][3:], axes='sxyz')))
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                if link_name != self.ee_link_name:
+                    link_poses[link_name] = CuroboPose(position=tensor_args.to_device(pose[robot_name][:3]),
+                                                       quaternion=tensor_args.to_device(
+                                                           t3d.euler.euler2quat(*pose[robot_name][3:], axes='sxyz')))
+        result = self.ik_solver.solve_batch(goal_pose=ee_pose, link_poses=link_poses)
+        torch.cuda.synchronize()
+        success = torch.any(result.success)
+        if success:
+            cmd_plan = result.js_solution
+            cmd_plan = cmd_plan.get_ordered_joint_state(self.joints_name)
+            result_position = cmd_plan.position.cpu().numpy()[0][0].tolist()
+            for robot_name, link_name in self.robot_names_link_names_pair.items():
+                joints_result = []
+                for i in range(*self.robot_names_robot_dof_pair[robot_name]):
+                    joints_result.append(result_position.pop(0))
+                if isinstance(pose, list):
+                    joint_angles = joints_result
+                else:
+                    joint_angles = {}
+                    joint_angles[robot_name] = joints_result
+            return joint_angles
+        else:
+            logger.warning('Ik solve did not converge to a solution.')
+            return None
+
+
+if __name__ == '__main__':
+    solver = CuroboSolverKinematic()
+    joint_angles = [-0.001229998898153242, -0.78373070703473, 0.00033452204524119444,
+                    1.3621342130897784, -0.002939444554553038, 1.5585773693838316,
+                    0.7862526640851296]
+
+    collision_result, world_collision_distance, self_collision_distance = solver.collision_check(joint_angles)
+    print("Collision check result:", collision_result, world_collision_distance, self_collision_distance)
+
+    pose = solver.forward_kinematics(joint_angles)
+    print("Forward kinematics result:", pose)
+
+    joint_angles = solver.inverse_kinematics(pose)
+    print("Inverse kinematics result:", joint_angles)

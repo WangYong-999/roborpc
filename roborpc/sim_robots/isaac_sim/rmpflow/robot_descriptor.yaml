@@ -1,0 +1,14 @@
+api_version: 1.0
+cspace:
+    - shoulder_pan_joint
+    - shoulder_lift_joint
+    - elbow_joint
+    - wrist_1_joint
+    - wrist_2_joint
+    - wrist_3_joint
+root_link: world
+default_q: [
+    0.00, 0.00, 0.00, 0.00, 0.00, 0.00
+]
+cspace_to_urdf_rules: []
+composite_task_spaces: []

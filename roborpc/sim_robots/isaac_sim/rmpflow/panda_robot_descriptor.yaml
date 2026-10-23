@@ -1,0 +1,15 @@
+api_version: 1.0
+cspace:
+    - panda_joint1
+    - panda_joint2
+    - panda_joint3
+    - panda_joint4
+    - panda_joint5
+    - panda_joint6
+    - panda_joint7
+root_link: world
+default_q: [
+    0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00
+]
+cspace_to_urdf_rules: []
+composite_task_spaces: []
